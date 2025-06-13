@@ -15,21 +15,32 @@ app = Flask(__name__,
            template_folder='../templates',
            static_folder='../static')
 # 本番環境ではSECRET_KEYを環境変数から取得
-app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(16))
+# Vercel環境では固定キーを使用してセッション一貫性を確保
+if os.environ.get('VERCEL'):
+    app.secret_key = os.environ.get('SECRET_KEY', 'suna-todo-fixed-secret-key-for-vercel-2024')
+else:
+    app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(16))
 
 # セッション設定（Vercel対応）
-app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS必須
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # XSS防止
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF防止
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1時間
+app.config['SESSION_COOKIE_NAME'] = 'suna_session'  # セッション名を明示的に設定
 
 # 本番環境設定
-if os.environ.get('FLASK_ENV') == 'production':
+if os.environ.get('VERCEL'):
+    # Vercel環境での特別設定
     app.config['DEBUG'] = False
     app.config['TESTING'] = False
+    app.config['SESSION_COOKIE_SECURE'] = False  # 一時的にfalseでテスト
+    app.config['SESSION_COOKIE_DOMAIN'] = None  # ドメイン制限を解除
+    logger.info("Running on Vercel - session cookie settings adjusted for serverless")
+elif os.environ.get('FLASK_ENV') == 'production':
+    app.config['DEBUG'] = False
+    app.config['TESTING'] = False
+    app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS必須
 else:
     app.config['DEBUG'] = True
-    # 開発環境ではHTTPSでなくても動作するように
     app.config['SESSION_COOKIE_SECURE'] = False
 
 # グローバルデータベース接続とマネージャー
