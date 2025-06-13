@@ -266,5 +266,12 @@ def user_detail(user_id):
     """個別受講者の詳細ページ"""
     return render_template('user_detail.html', user_id=user_id)
 
+# Vercel用のWSGIアプリケーション
+def application(environ, start_response):
+    return app(environ, start_response)
+
+# Vercel用のアプリケーションオブジェクト
+vercel_app = app
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5005)

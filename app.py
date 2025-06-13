@@ -530,5 +530,12 @@ def delete_routine_task(task_id):
         logger.error(f"Error deleting routine task: {e}")
         return jsonify({'error': str(e)}), 500
 
+# Vercel用のWSGIアプリケーション
+def application(environ, start_response):
+    return app(environ, start_response)
+
+# Vercel用のアプリケーションオブジェクト
+vercel_app = app
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5004)
