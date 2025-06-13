@@ -17,12 +17,20 @@ app = Flask(__name__,
 # 本番環境ではSECRET_KEYを環境変数から取得
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(16))
 
+# セッション設定（Vercel対応）
+app.config['SESSION_COOKIE_SECURE'] = True  # HTTPS必須
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # XSS防止
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF防止
+app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1時間
+
 # 本番環境設定
 if os.environ.get('FLASK_ENV') == 'production':
     app.config['DEBUG'] = False
     app.config['TESTING'] = False
 else:
     app.config['DEBUG'] = True
+    # 開発環境ではHTTPSでなくても動作するように
+    app.config['SESSION_COOKIE_SECURE'] = False
 
 # グローバルデータベース接続とマネージャー
 _global_db_conn = None
@@ -511,10 +519,18 @@ def admin_required(f):
     from functools import wraps
     @wraps(f)
     def admin_decorated_function(*args, **kwargs):
+        # デバッグ情報をログ出力
+        logger.info(f"Admin check - Session keys: {list(session.keys())}")
+        logger.info(f"Admin check - user_id: {session.get('user_id')}")
+        logger.info(f"Admin check - user_role: {session.get('user_role')}")
+        
         if 'user_id' not in session:
+            logger.info("Admin check failed: No user_id in session")
             return redirect(url_for('login'))
         if session.get('user_role') != 'admin':
+            logger.info(f"Admin check failed: user_role is '{session.get('user_role')}', not 'admin'")
             return redirect(url_for('index'))
+        logger.info("Admin check passed")
         return f(*args, **kwargs)
     return admin_decorated_function
 
@@ -526,9 +542,11 @@ def login():
         
         user = todo_manager.authenticate_user(username, password)
         if user:
+            session.permanent = True  # 永続セッションを有効化
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['user_role'] = user['role']
+            logger.info(f"User logged in: {user['username']}, role: {user['role']}")
             return redirect(url_for('index'))
         else:
             return render_template('login.html', error='ユーザー名またはパスワードが間違っています')
