@@ -337,14 +337,24 @@
         async function loadStudents() {
             try {
                 const response = await fetch('/api/admin/users');
-                const students = await response.json();
+                
+                // レスポンスステータスをチェック
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Users response:', data); // デバッグ用
                 
                 const container = document.getElementById('studentsContainer');
                 
-                // APIエラーレスポンスをチェック
-                if (!response.ok || !Array.isArray(students)) {
-                    throw new Error(`API Error: ${response.status}`);
+                // エラーレスポンスかどうかをチェック
+                if (data.error) {
+                    throw new Error(`API Error: ${data.error}`);
                 }
+                
+                // データが配列かエラーオブジェクトかをチェック
+                const students = Array.isArray(data) ? data : (data.users || []);
                 
                 if (students.length === 0) {
                     container.innerHTML = `

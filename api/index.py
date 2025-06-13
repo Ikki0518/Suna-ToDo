@@ -712,16 +712,19 @@ def get_admin_stats():
     """管理者用統計データAPI"""
     try:
         manager = get_todo_manager()
+        logger.info("Getting overall stats...")
         stats = manager.get_overall_stats()
+        logger.info(f"Stats retrieved: {stats}")
         return jsonify(stats)
     except Exception as e:
-        logger.error(f"Admin stats error: {e}")
+        logger.error(f"Admin stats error: {e}", exc_info=True)
         # エラー時はデフォルト値を返す
         return jsonify({
             'total_users': 0,
             'active_today': 0,
-            'avg_completion_rate': 0
-        })
+            'avg_completion_rate': 0,
+            'error': str(e)
+        }), 500
 
 @app.route('/api/admin/users')
 @admin_required
@@ -729,7 +732,9 @@ def get_admin_users():
     """管理者用受講者一覧API"""
     try:
         manager = get_todo_manager()
+        logger.info("Getting all users...")
         users = manager.get_all_users()
+        logger.info(f"Retrieved {len(users)} users")
         today = date.today().isoformat()
         
         # 各ユーザーの今日の進捗を追加
@@ -751,7 +756,7 @@ def get_admin_users():
                         'completion_rate': round((total_completed / total_tasks * 100) if total_tasks > 0 else 0, 1)
                     }
                 except Exception as e:
-                    logger.error(f"Error getting user progress for user {user['id']}: {e}")
+                    logger.error(f"Error getting user progress for user {user['id']}: {e}", exc_info=True)
                     user['today_progress'] = {
                         'total_tasks': 0,
                         'completed_tasks': 0,
@@ -764,19 +769,21 @@ def get_admin_users():
                     'completion_rate': 0
                 }
         
+        logger.info("Successfully processed all users")
         return jsonify(users)
     except Exception as e:
-        logger.error(f"Admin users error: {e}")
+        logger.error(f"Admin users error: {e}", exc_info=True)
         # エラー時は空のリストを返す
-        return jsonify([])
+        return jsonify({'error': str(e), 'users': []}), 500
 
 @app.route('/api/admin/users/<int:user_id>/progress')
 @admin_required
 def get_admin_user_progress(user_id):
     """管理者用特定受講者の進捗API"""
     try:
+        manager = get_todo_manager()
         date_str = request.args.get('date', date.today().isoformat())
-        progress = todo_manager.get_user_progress(user_id, date_str)
+        progress = manager.get_user_progress(user_id, date_str)
         return jsonify(progress)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
