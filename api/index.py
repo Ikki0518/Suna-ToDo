@@ -24,21 +24,28 @@ if os.environ.get('FLASK_ENV') == 'production':
 else:
     app.config['DEBUG'] = True
 
-# グローバルデータベース接続
+# グローバルデータベース接続とマネージャー
 _global_db_conn = None
+_global_todo_manager = None
 
 class AISchoolTodoManager:
     def __init__(self):
         # Vercel serverless環境ではメモリ内データベースを使用
         self.db_name = ':memory:'
-        self.init_database()
+        self._ensure_database()
         
-    def get_connection(self):
+    def _ensure_database(self):
+        """データベースが初期化されていることを確認"""
         global _global_db_conn
-        # グローバル接続を使用してVercelでの状態保持
         if _global_db_conn is None:
             _global_db_conn = sqlite3.connect(self.db_name, check_same_thread=False)
             _global_db_conn.row_factory = sqlite3.Row
+            self.init_database()
+        
+    def get_connection(self):
+        global _global_db_conn
+        if _global_db_conn is None:
+            self._ensure_database()
         return _global_db_conn
     
     def init_database(self):
@@ -58,6 +65,13 @@ class AISchoolTodoManager:
             
             # 既存テーブルの構造をチェックしてマイグレーション
             self.migrate_tables(cursor)
+            
+            # Vercel環境でのデータ永続化問題に対応
+            cursor.execute('SELECT COUNT(*) FROM users')
+            user_count = cursor.fetchone()[0]
+            if user_count == 0:
+                # データがない場合は必須ユーザーを強制作成
+                self._create_essential_users()
             
             conn.commit()
     
@@ -162,6 +176,20 @@ class AISchoolTodoManager:
             
             return dict(result) if result else None
     
+    def _create_essential_users(self):
+        """Vercel環境で必須ユーザーを強制作成"""
+        try:
+            # 一般ユーザー（学生）を作成
+            self.create_user('demo', 'demo123', 'student')
+            
+            # 管理者アカウントを作成
+            self.create_user('ikki_y0518@icloud.com', 'ikki0518', 'admin')
+            self.create_user('admin', 'admin123', 'admin')
+            
+            logger.info("Essential users created successfully")
+        except Exception as e:
+            logger.error(f"Error creating essential users: {e}")
+
     def insert_sample_data(self):
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -458,8 +486,15 @@ def login_required(f):
                 'avg_completion_rate': round(avg_completion, 1)
             }
 
+def get_todo_manager():
+    """グローバルなTODOマネージャーを取得"""
+    global _global_todo_manager
+    if _global_todo_manager is None:
+        _global_todo_manager = AISchoolTodoManager()
+    return _global_todo_manager
+
 # グローバルインスタンス
-todo_manager = AISchoolTodoManager()
+todo_manager = get_todo_manager()
 
 def login_required(f):
     """ログインが必要なルートのデコレータ"""
@@ -658,7 +693,8 @@ def admin_dashboard():
 def get_admin_stats():
     """管理者用統計データAPI"""
     try:
-        stats = todo_manager.get_overall_stats()
+        manager = get_todo_manager()
+        stats = manager.get_overall_stats()
         return jsonify(stats)
     except Exception as e:
         logger.error(f"Admin stats error: {e}")
@@ -674,14 +710,15 @@ def get_admin_stats():
 def get_admin_users():
     """管理者用受講者一覧API"""
     try:
-        users = todo_manager.get_all_users()
+        manager = get_todo_manager()
+        users = manager.get_all_users()
         today = date.today().isoformat()
         
         # 各ユーザーの今日の進捗を追加
         for user in users:
             if user['role'] == 'student':
                 try:
-                    progress = todo_manager.get_user_progress(user['id'], today)
+                    progress = manager.get_user_progress(user['id'], today)
                     daily_total = progress['daily']['total']
                     daily_completed = progress['daily']['completed']
                     routine_total = progress['routine']['total']
