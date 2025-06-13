@@ -783,6 +783,20 @@ def get_admin_stats():
     try:
         manager = get_todo_manager()
         logger.info("Getting overall stats...")
+        
+        # データベースに必要なデータが存在するか確認
+        with manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT COUNT(*) FROM users WHERE role = "student"')
+            student_count = cursor.fetchone()[0]
+            
+            # 学生ユーザーが存在しない場合、サンプルデータを作成
+            if student_count == 0:
+                logger.info("No student users found, creating sample data...")
+                manager._create_essential_users()
+                # サンプルデータも作成
+                manager.insert_sample_data()
+        
         stats = manager.get_overall_stats()
         logger.info(f"Stats retrieved: {stats}")
         return jsonify(stats)
@@ -803,6 +817,20 @@ def get_admin_users():
     try:
         manager = get_todo_manager()
         logger.info("Getting all users...")
+        
+        # データベースに必要なデータが存在するか確認
+        with manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT COUNT(*) FROM users WHERE role = "student"')
+            student_count = cursor.fetchone()[0]
+            
+            # 学生ユーザーが存在しない場合、サンプルデータを作成
+            if student_count == 0:
+                logger.info("No student users found, creating sample data...")
+                manager._create_essential_users()
+                # サンプルデータも作成
+                manager.insert_sample_data()
+        
         users = manager.get_all_users()
         logger.info(f"Retrieved {len(users)} users")
         today = date.today().isoformat()
