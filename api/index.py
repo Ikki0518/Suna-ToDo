@@ -222,14 +222,9 @@ class AISchoolTodoManager:
             return dict(result) if result else None
     
     def _create_essential_users(self):
-        """Vercel環境で必須ユーザーを強制作成"""
+        """Vercel環境で管理者アカウントのみを作成"""
         try:
-            # 一般ユーザー（学生）を作成
-            demo_id = self.create_user('demo', 'demo123', 'student')
-            if demo_id:
-                logger.info("Demo user created successfully")
-            
-            # 管理者アカウントを作成
+            # 管理者アカウントのみを作成（受講者は新規登録で作成）
             admin1_id = self.create_user('ikki_y0518@icloud.com', 'ikki0518', 'admin')
             if admin1_id:
                 logger.info("Admin user (ikki_y0518@icloud.com) created successfully")
@@ -249,50 +244,9 @@ class AISchoolTodoManager:
             logger.error(f"Error creating essential users: {e}", exc_info=True)
 
     def insert_sample_data(self):
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            # デフォルトユーザーのIDを取得
-            cursor.execute('SELECT id FROM users WHERE username = ? AND role = ?', ('demo', 'student'))
-            user_row = cursor.fetchone()
-            if user_row:
-                default_user_id = user_row[0]
-                
-                # 既存のサンプルデータをチェック
-                cursor.execute('SELECT COUNT(*) FROM routine_tasks WHERE user_id = ?', (default_user_id,))
-                routine_count = cursor.fetchone()[0]
-                
-                if routine_count == 0:
-                    # 今日の日付
-                    today = date.today().isoformat()
-                    
-                    # サンプルの定常タスク
-                    sample_routines = [
-                        ('r1', default_user_id, '歯磨き', 0),
-                        ('r2', default_user_id, '朝食を食べる', 1),
-                        ('r3', default_user_id, '軽いストレッチ', 2)
-                    ]
-                    
-                    cursor.executemany('''
-                        INSERT INTO routine_tasks (id, user_id, text, position)
-                        VALUES (?, ?, ?, ?)
-                    ''', sample_routines)
-                    
-                    # サンプルの日次タスク
-                    sample_tasks = [
-                        ('task_1', default_user_id, 'AI入門コース セクション1完了', 0, today, 0, 0),
-                        ('task_2', default_user_id, '動画視聴 (チャプター2)', 0, today, 1, 1),
-                        ('task_3', default_user_id, '演習問題1-Aを解く', 0, today, 1, 2),
-                        ('task_4', default_user_id, 'AI倫理に関する記事を読む', 0, today, 0, 3),
-                        ('task_5', default_user_id, 'メンターに質問リストを送る', 0, today, 0, 4),
-                    ]
-                    
-                    cursor.executemany('''
-                        INSERT INTO daily_tasks (id, user_id, text, completed, date, indent, position)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ''', sample_tasks)
-                    
-                    conn.commit()
+        """サンプルデータは作成せず、実際の登録ユーザーのみを使用"""
+        logger.info("Database initialized without sample data - only real registered users will be shown")
+        # サンプルデータは作成しない
     
     def get_routine_tasks(self, user_id):
         with self.get_connection() as conn:
@@ -784,29 +738,16 @@ def get_admin_stats():
         manager = get_todo_manager()
         logger.info("Getting overall stats...")
         
-        # データベースに必要なデータが存在するか確認
-        with manager.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('SELECT COUNT(*) FROM users WHERE role = "student"')
-            student_count = cursor.fetchone()[0]
-            
-            # 学生ユーザーが存在しない場合、サンプルデータを作成
-            if student_count == 0:
-                logger.info("No student users found, creating sample data...")
-                manager._create_essential_users()
-                # サンプルデータも作成
-                manager.insert_sample_data()
-        
         stats = manager.get_overall_stats()
         logger.info(f"Stats retrieved: {stats}")
         return jsonify(stats)
     except Exception as e:
         logger.error(f"Admin stats error: {e}", exc_info=True)
-        # 確実にデータを返すため、サンプルデータを返す
+        # エラー時は実データがない場合の値を返す
         return jsonify({
-            'total_users': 1,
-            'active_today': 1,
-            'avg_completion_rate': 75.0
+            'total_users': 0,
+            'active_today': 0,
+            'avg_completion_rate': 0
         })
 
 @app.route('/api/admin/users')
@@ -816,19 +757,6 @@ def get_admin_users():
     try:
         manager = get_todo_manager()
         logger.info("Getting all users...")
-        
-        # データベースに必要なデータが存在するか確認
-        with manager.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('SELECT COUNT(*) FROM users WHERE role = "student"')
-            student_count = cursor.fetchone()[0]
-            
-            # 学生ユーザーが存在しない場合、サンプルデータを作成
-            if student_count == 0:
-                logger.info("No student users found, creating sample data...")
-                manager._create_essential_users()
-                # サンプルデータも作成
-                manager.insert_sample_data()
         
         users = manager.get_all_users()
         logger.info(f"Retrieved {len(users)} users")
@@ -870,31 +798,8 @@ def get_admin_users():
         return jsonify(users)
     except Exception as e:
         logger.error(f"Admin users error: {e}", exc_info=True)
-        # 確実にデータを返すため、サンプルユーザーデータを返す
-        return jsonify([
-            {
-                'id': 1,
-                'username': 'demo',
-                'role': 'student',
-                'created_at': '2024-01-01 00:00:00',
-                'today_progress': {
-                    'total_tasks': 5,
-                    'completed_tasks': 3,
-                    'completion_rate': 60.0
-                }
-            },
-            {
-                'id': 2,
-                'username': 'student1',
-                'role': 'student',
-                'created_at': '2024-01-02 00:00:00',
-                'today_progress': {
-                    'total_tasks': 8,
-                    'completed_tasks': 7,
-                    'completion_rate': 87.5
-                }
-            }
-        ])
+        # エラー時は空のリストを返す（実際の登録ユーザーのみ表示）
+        return jsonify([])
 
 @app.route('/api/admin/users/<int:user_id>/progress')
 @admin_required
