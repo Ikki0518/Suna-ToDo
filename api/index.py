@@ -49,13 +49,18 @@ _global_todo_manager = None
 
 class AISchoolTodoManager:
     def __init__(self):
-        # Vercel serverless環境では一時ファイルデータベースを使用
-        import tempfile
+        # Vercel serverless環境でのデータベース設定
         import os
         
-        # 一時ディレクトリにデータベースファイルを作成
-        temp_dir = tempfile.gettempdir()
-        self.db_name = os.path.join(temp_dir, 'suna_todo.db')
+        # 環境変数からデータベースパスを取得、デフォルトは/tmp/suna_todo.db
+        if os.environ.get('VERCEL'):
+            # Vercel環境では/tmpディレクトリを使用
+            self.db_name = '/tmp/suna_todo.db'
+        else:
+            # ローカル環境では相対パス
+            self.db_name = 'suna_todo.db'
+        
+        logger.info(f"Database path: {self.db_name}")
         
         # データベースの初期化を確実に実行
         self._ensure_database()
@@ -66,26 +71,31 @@ class AISchoolTodoManager:
         
         logger.info(f"Ensuring database: {self.db_name}")
         
-        if _global_db_conn is None:
-            logger.info("Creating new database connection")
-            _global_db_conn = sqlite3.connect(self.db_name, check_same_thread=False)
-            _global_db_conn.row_factory = sqlite3.Row
-            logger.info("Initializing database")
+        # 毎回新しい接続を作成（Vercel環境での安定性向上）
+        try:
+            if _global_db_conn:
+                _global_db_conn.close()
+        except:
+            pass
+            
+        _global_db_conn = sqlite3.connect(self.db_name, check_same_thread=False)
+        _global_db_conn.row_factory = sqlite3.Row
+        
+        # テーブルの存在を確認
+        cursor = _global_db_conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        
+        if not cursor.fetchone():
+            logger.info("Tables not found, initializing database")
             self.init_database()
         else:
-            logger.info("Using existing database connection")
-            # 既存の接続でテーブルが存在するかチェック
-            try:
-                cursor = _global_db_conn.cursor()
-                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
-                if not cursor.fetchone():
-                    logger.info("Tables missing, reinitializing database")
-                    self.init_database()
-            except Exception as e:
-                logger.error(f"Database check failed, reinitializing: {e}")
-                _global_db_conn = sqlite3.connect(self.db_name, check_same_thread=False)
-                _global_db_conn.row_factory = sqlite3.Row
-                self.init_database()
+            logger.info("Database tables exist")
+            # 管理者アカウントの存在を確認
+            cursor.execute('SELECT COUNT(*) FROM users WHERE role = "admin"')
+            admin_count = cursor.fetchone()[0]
+            if admin_count == 0:
+                logger.info("No admin users found, creating admin accounts")
+                self._create_essential_users()
         
     def get_connection(self):
         global _global_db_conn
