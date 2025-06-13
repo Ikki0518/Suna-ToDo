@@ -49,17 +49,43 @@ _global_todo_manager = None
 
 class AISchoolTodoManager:
     def __init__(self):
-        # Vercel serverless環境ではメモリ内データベースを使用
-        self.db_name = ':memory:'
+        # Vercel serverless環境では一時ファイルデータベースを使用
+        import tempfile
+        import os
+        
+        # 一時ディレクトリにデータベースファイルを作成
+        temp_dir = tempfile.gettempdir()
+        self.db_name = os.path.join(temp_dir, 'suna_todo.db')
+        
+        # データベースの初期化を確実に実行
         self._ensure_database()
         
     def _ensure_database(self):
         """データベースが初期化されていることを確認"""
         global _global_db_conn
+        
+        logger.info(f"Ensuring database: {self.db_name}")
+        
         if _global_db_conn is None:
+            logger.info("Creating new database connection")
             _global_db_conn = sqlite3.connect(self.db_name, check_same_thread=False)
             _global_db_conn.row_factory = sqlite3.Row
+            logger.info("Initializing database")
             self.init_database()
+        else:
+            logger.info("Using existing database connection")
+            # 既存の接続でテーブルが存在するかチェック
+            try:
+                cursor = _global_db_conn.cursor()
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+                if not cursor.fetchone():
+                    logger.info("Tables missing, reinitializing database")
+                    self.init_database()
+            except Exception as e:
+                logger.error(f"Database check failed, reinitializing: {e}")
+                _global_db_conn = sqlite3.connect(self.db_name, check_same_thread=False)
+                _global_db_conn.row_factory = sqlite3.Row
+                self.init_database()
         
     def get_connection(self):
         global _global_db_conn
