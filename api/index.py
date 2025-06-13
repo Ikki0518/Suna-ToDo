@@ -11,7 +11,9 @@ import os
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+app = Flask(__name__,
+           template_folder='../templates',
+           static_folder='../static')
 # 本番環境ではSECRET_KEYを環境変数から取得
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(16))
 
@@ -24,13 +26,16 @@ else:
 
 class AISchoolTodoManager:
     def __init__(self):
-        self.db_name = 'ai_school_todos.db'
+        # Vercel serverless環境ではメモリ内データベースを使用
+        self.db_name = ':memory:'
         self.init_database()
         
     def get_connection(self):
-        conn = sqlite3.connect(self.db_name)
-        conn.row_factory = sqlite3.Row
-        return conn
+        # メモリ内データベースのため、グローバル接続を保持
+        if not hasattr(self, '_conn'):
+            self._conn = sqlite3.connect(self.db_name, check_same_thread=False)
+            self._conn.row_factory = sqlite3.Row
+        return self._conn
     
     def init_database(self):
         with self.get_connection() as conn:
