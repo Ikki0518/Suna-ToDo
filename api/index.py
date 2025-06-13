@@ -199,32 +199,44 @@ class AISchoolTodoManager:
         """Vercel環境で必須ユーザーを強制作成"""
         try:
             # 一般ユーザー（学生）を作成
-            self.create_user('demo', 'demo123', 'student')
+            demo_id = self.create_user('demo', 'demo123', 'student')
+            if demo_id:
+                logger.info("Demo user created successfully")
             
             # 管理者アカウントを作成
-            self.create_user('ikki_y0518@icloud.com', 'ikki0518', 'admin')
-            self.create_user('admin', 'admin123', 'admin')
+            admin1_id = self.create_user('ikki_y0518@icloud.com', 'ikki0518', 'admin')
+            if admin1_id:
+                logger.info("Admin user (ikki_y0518@icloud.com) created successfully")
+                
+            admin2_id = self.create_user('admin', 'admin123', 'admin')
+            if admin2_id:
+                logger.info("Admin user (admin) created successfully")
             
-            logger.info("Essential users created successfully")
+            # 作成されたユーザー数を確認
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('SELECT COUNT(*) FROM users')
+                user_count = cursor.fetchone()[0]
+                logger.info(f"Total users in database: {user_count}")
+                
         except Exception as e:
-            logger.error(f"Error creating essential users: {e}")
+            logger.error(f"Error creating essential users: {e}", exc_info=True)
 
     def insert_sample_data(self):
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
-            # デフォルトユーザーを作成
-            cursor.execute('SELECT COUNT(*) FROM users')
-            if cursor.fetchone()[0] == 0:
-                # 一般ユーザー（学生）を作成
-                default_user_id = self.create_user('demo', 'demo123', 'student')
+            # デフォルトユーザーのIDを取得
+            cursor.execute('SELECT id FROM users WHERE username = ? AND role = ?', ('demo', 'student'))
+            user_row = cursor.fetchone()
+            if user_row:
+                default_user_id = user_row[0]
                 
-                # 管理者アカウントを作成
-                admin_user_id = self.create_user('ikki_y0518@icloud.com', 'ikki0518', 'admin')
-                # 追加の管理者アカウント
-                self.create_user('admin', 'admin123', 'admin')
+                # 既存のサンプルデータをチェック
+                cursor.execute('SELECT COUNT(*) FROM routine_tasks WHERE user_id = ?', (default_user_id,))
+                routine_count = cursor.fetchone()[0]
                 
-                if default_user_id:
+                if routine_count == 0:
                     # 今日の日付
                     today = date.today().isoformat()
                     
@@ -460,50 +472,71 @@ def login_required(f):
     
     def get_overall_stats(self):
         """全体統計を取得"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            
-            # 総受講者数
-            cursor.execute('SELECT COUNT(*) FROM users WHERE role = "student"')
-            total_users = cursor.fetchone()[0]
-            
-            # 今日のアクティブユーザー数
-            today = date.today().isoformat()
-            cursor.execute('''
-                SELECT COUNT(DISTINCT user_id)
-                FROM daily_tasks
-                WHERE date = ?
-            ''', (today,))
-            active_today = cursor.fetchone()[0]
-            
-            # 平均完了率を計算
-            cursor.execute('SELECT id FROM users WHERE role = "student"')
-            users = cursor.fetchall()
-            
-            total_completion_rates = []
-            for user_row in users:
-                user_id = user_row[0]
-                progress = self.get_user_progress(user_id, today)
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                logger.info("Getting overall stats - starting")
                 
-                daily_total = progress['daily']['total']
-                daily_completed = progress['daily']['completed']
-                routine_total = progress['routine']['total']
-                routine_completed = progress['routine']['completed']
+                # データベース接続とテーブル存在確認
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                tables = [row[0] for row in cursor.fetchall()]
+                logger.info(f"Available tables: {tables}")
                 
-                total_tasks = daily_total + routine_total
-                total_completed = daily_completed + routine_completed
+                # 総受講者数
+                cursor.execute('SELECT COUNT(*) FROM users WHERE role = "student"')
+                total_users = cursor.fetchone()[0]
+                logger.info(f"Total students: {total_users}")
                 
-                if total_tasks > 0:
-                    completion_rate = (total_completed / total_tasks) * 100
-                    total_completion_rates.append(completion_rate)
-            
-            avg_completion = sum(total_completion_rates) / len(total_completion_rates) if total_completion_rates else 0
-            
-            return {
-                'total_users': total_users,
-                'active_today': active_today,
-                'avg_completion_rate': round(avg_completion, 1)
-            }
+                # 今日のアクティブユーザー数
+                today = date.today().isoformat()
+                logger.info(f"Today: {today}")
+                
+                cursor.execute('''
+                    SELECT COUNT(DISTINCT user_id)
+                    FROM daily_tasks
+                    WHERE date = ?
+                ''', (today,))
+                active_today = cursor.fetchone()[0]
+                logger.info(f"Active today: {active_today}")
+                
+                # 平均完了率を計算
+                cursor.execute('SELECT id FROM users WHERE role = "student"')
+                users = cursor.fetchall()
+                logger.info(f"Student users found: {len(users)}")
+                
+                total_completion_rates = []
+                for user_row in users:
+                    user_id = user_row[0]
+                    try:
+                        progress = self.get_user_progress(user_id, today)
+                        
+                        daily_total = progress['daily']['total']
+                        daily_completed = progress['daily']['completed']
+                        routine_total = progress['routine']['total']
+                        routine_completed = progress['routine']['completed']
+                        
+                        total_tasks = daily_total + routine_total
+                        total_completed = daily_completed + routine_completed
+                        
+                        if total_tasks > 0:
+                            completion_rate = (total_completed / total_tasks) * 100
+                            total_completion_rates.append(completion_rate)
+                    except Exception as e:
+                        logger.error(f"Error getting progress for user {user_id}: {e}")
+                
+                avg_completion = sum(total_completion_rates) / len(total_completion_rates) if total_completion_rates else 0
+                
+                result = {
+                    'total_users': total_users,
+                    'active_today': active_today,
+                    'avg_completion_rate': round(avg_completion, 1)
+                }
+                logger.info(f"Stats result: {result}")
+                return result
+                
+        except Exception as e:
+            logger.error(f"Error in get_overall_stats: {e}", exc_info=True)
+            raise
 
 def get_todo_manager():
     """グローバルなTODOマネージャーを取得"""
