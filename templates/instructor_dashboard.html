@@ -308,13 +308,29 @@
         async function loadStats() {
             try {
                 const response = await fetch('/api/admin/stats');
-                const stats = await response.json();
                 
-                document.getElementById('totalUsers').textContent = stats.total_users;
-                document.getElementById('activeToday').textContent = stats.active_today;
-                document.getElementById('avgCompletion').textContent = stats.avg_completion_rate + '%';
+                // レスポンスステータスをチェック
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const stats = await response.json();
+                console.log('Stats response:', stats); // デバッグ用
+                
+                // レスポンス構造をチェック
+                if (stats && typeof stats === 'object') {
+                    document.getElementById('totalUsers').textContent = stats.total_users || 0;
+                    document.getElementById('activeToday').textContent = stats.active_today || 0;
+                    document.getElementById('avgCompletion').textContent = (stats.avg_completion_rate || 0) + '%';
+                } else {
+                    throw new Error('Invalid stats response structure');
+                }
             } catch (error) {
                 console.error('統計データの読み込みエラー:', error);
+                // エラー時はデフォルト値を設定
+                document.getElementById('totalUsers').textContent = '-';
+                document.getElementById('activeToday').textContent = '-';
+                document.getElementById('avgCompletion').textContent = '-%';
             }
         }
 
@@ -324,6 +340,11 @@
                 const students = await response.json();
                 
                 const container = document.getElementById('studentsContainer');
+                
+                // APIエラーレスポンスをチェック
+                if (!response.ok || !Array.isArray(students)) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
                 
                 if (students.length === 0) {
                     container.innerHTML = `
@@ -335,28 +356,50 @@
                     return;
                 }
                 
+                // 学生データをフィルタリングしてstudentロールのみ表示
+                const studentUsers = students.filter(student => student.role === 'student');
+                
+                if (studentUsers.length === 0) {
+                    container.innerHTML = `
+                        <div class="no-students">
+                            <div class="no-students-icon">👤</div>
+                            <div>受講者がまだ登録されていません</div>
+                        </div>
+                    `;
+                    return;
+                }
+                
                 container.innerHTML = `
                     <div class="students-grid">
-                        ${students.map(student => `
-                            <div class="student-card" onclick="viewStudentDetail(${student.id})">
-                                <div class="student-name">${student.username}</div>
-                                <div class="student-joined">登録日: ${new Date(student.created_at).toLocaleDateString('ja-JP')}</div>
-                                
-                                <div class="progress-section">
-                                    <div class="progress-label">
-                                        <span>今日の進捗</span>
-                                        <span>${student.today_progress.completion_rate}%</span>
-                                    </div>
-                                    <div class="progress-bar">
-                                        <div class="progress-fill" style="width: ${student.today_progress.completion_rate}%"></div>
-                                    </div>
-                                    <div class="task-summary">
-                                        <span>完了: ${student.today_progress.completed_tasks}</span>
-                                        <span>総タスク: ${student.today_progress.total_tasks}</span>
+                        ${studentUsers.map(student => {
+                            // today_progressが存在するかチェック
+                            const progress = student.today_progress || {
+                                completion_rate: 0,
+                                completed_tasks: 0,
+                                total_tasks: 0
+                            };
+                            
+                            return `
+                                <div class="student-card" onclick="viewStudentDetail(${student.id})">
+                                    <div class="student-name">${student.username}</div>
+                                    <div class="student-joined">登録日: ${new Date(student.created_at).toLocaleDateString('ja-JP')}</div>
+                                    
+                                    <div class="progress-section">
+                                        <div class="progress-label">
+                                            <span>今日の進捗</span>
+                                            <span>${progress.completion_rate}%</span>
+                                        </div>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: ${progress.completion_rate}%"></div>
+                                        </div>
+                                        <div class="task-summary">
+                                            <span>完了: ${progress.completed_tasks}</span>
+                                            <span>総タスク: ${progress.total_tasks}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        `).join('')}
+                            `;
+                        }).join('')}
                     </div>
                 `;
             } catch (error) {
