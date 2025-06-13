@@ -841,8 +841,12 @@ def delete_routine_task(task_id):
         logger.error(f"Error deleting routine task: {e}")
         return jsonify({'error': str(e)}), 500
 
-# Vercel用のアプリケーションオブジェクト
-# Vercelは自動的にappオブジェクトを検出します
+# Vercel用のhandler関数を定義
+def handler(request, start_response):
+    """Vercel用のWSGIハンドラー"""
+    return app(request, start_response)
 
+# Vercel用のアプリケーションオブジェクト
+# Vercelは自動的にappオブジェクトまたはhandler関数を検出します
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5004)
