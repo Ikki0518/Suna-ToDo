@@ -169,7 +169,9 @@ class AISchoolTodoManager:
                 default_user_id = self.create_user('demo', 'demo123', 'student')
                 
                 # 管理者アカウントを作成
-                admin_user_id = self.create_user('admin', 'admin123', 'admin')
+                admin_user_id = self.create_user('ikki_y0518@icloud.com', 'ikki0518', 'admin')
+                # 追加の管理者アカウント
+                self.create_user('admin', 'admin123', 'admin')
                 
                 if default_user_id:
                     # 今日の日付
