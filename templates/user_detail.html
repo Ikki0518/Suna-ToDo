@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>受講者詳細 - AI スクール管理</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #4a5568;
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+
+        .suna-logo {
+            width: 60px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .suna-badge {
+            background: linear-gradient(135deg, #67E8F9 0%, #2563EB 100%);
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 15px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            margin-left: 0.5rem;
+        }
+
+        .back-btn {
+            background: #718096;
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: #4a5568;
+            transform: translateY(-1px);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .user-info {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 2rem;
+        }
+
+        .user-name {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+
+        .user-meta {
+            color: #718096;
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .date-selector {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .date-input {
+            padding: 0.5rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .progress-overview {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .progress-card {
+            background: rgba(246, 250, 254, 0.8);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .progress-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-label {
+            color: #718096;
+            font-size: 0.9rem;
+        }
+
+        .task-list {
+            space-y: 0.5rem;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            background: rgba(246, 250, 254, 0.5);
+            margin-bottom: 0.5rem;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .task-item.completed {
+            background: rgba(72, 187, 120, 0.1);
+            border-color: rgba(72, 187, 120, 0.2);
+        }
+
+        .task-checkbox {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            border: 2px solid #cbd5e0;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .task-checkbox.completed {
+            background: #48bb78;
+            border-color: #48bb78;
+            color: white;
+        }
+
+        .task-text {
+            flex: 1;
+            font-size: 0.95rem;
+            color: #2d3748;
+        }
+
+        .task-text.completed {
+            text-decoration: line-through;
+            color: #718096;
+        }
+
+        .task-text.indented {
+            margin-left: 1.5rem;
+            font-size: 0.9rem;
+            color: #4a5568;
+        }
+
+        .weekly-chart-container {
+            grid-column: 1 / -1;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 1rem;
+        }
+
+        .chart-bars {
+            display: flex;
+            align-items: end;
+            height: 250px;
+            gap: 0.5rem;
+            padding: 1rem 0;
+        }
+
+        .chart-bar {
+            flex: 1;
+            background: linear-gradient(to top, #667eea, #764ba2);
+            border-radius: 4px 4px 0 0;
+            min-height: 2px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .chart-bar:hover {
+            transform: scaleY(1.05);
+            filter: brightness(1.1);
+        }
+
+        .chart-label {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.75rem;
+            color: #718096;
+            white-space: nowrap;
+        }
+
+        .chart-value {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #718096;
+        }
+
+        .spinner {
+            border: 3px solid #e2e8f0;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .progress-overview {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body data-user-id="{{ user_id }}">
+    <div class="header">
+        <div class="header-content">
+            <h1 id="pageTitle">
+                <div class="suna-logo">
+                    <svg width="60" height="28" viewBox="0 0 115 55">
+                        <!-- 大きな円（右上、明るいターコイズブルー） -->
+                        <circle cx="90" cy="20" r="13" fill="#67E8F9" opacity="0.85"/>
+                        <!-- 中くらいの円（左中央、濃いブルー） -->
+                        <circle cx="73" cy="28" r="8" fill="#2563EB" opacity="0.9"/>
+                        <!-- 小さな円（右下、薄いターコイズ） -->
+                        <circle cx="83" cy="35" r="5" fill="#A7F3D0" opacity="0.75"/>
+                        <!-- テキスト "suna" -->
+                        <text x="0" y="42" fontSize="26" fontWeight="700" fill="#1E293B" fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" letterSpacing="-1.2px">
+                            suna
+                        </text>
+                    </svg>
+                </div>
+                受講者詳細
+                <span class="suna-badge">Suna</span>
+            </h1>
+            <a href="/" class="back-btn">
+                ← ダッシュボードに戻る
+            </a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="user-info">
+            <div class="user-name" id="userName">読み込み中...</div>
+            <div class="user-meta" id="userMeta">-</div>
+            
+            <div class="date-selector">
+                <label for="dateInput">表示日付:</label>
+                <input type="date" id="dateInput" class="date-input">
+            </div>
+        </div>
+
+        <div class="content-grid">
+            <!-- 進捗概要 -->
+            <div class="section">
+                <div class="section-title">📊 進捗概要</div>
+                <div class="progress-overview" id="progressOverview">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        読み込み中...
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日次タスク -->
+            <div class="section">
+                <div class="section-title">📝 日次タスク</div>
+                <div class="task-list" id="dailyTasks">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        読み込み中...
+                    </div>
+                </div>
+            </div>
+
+            <!-- 定常タスク -->
+            <div class="section">
+                <div class="section-title">🔄 定常タスク</div>
+                <div class="task-list" id="routineTasks">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        読み込み中...
+                    </div>
+                </div>
+            </div>
+
+            <!-- 週間進捗チャート -->
+            <div class="section weekly-chart-container">
+                <div class="section-title">📈 週間進捗</div>
+                <div class="chart-container" id="weeklyChart">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        読み込み中...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const userId = parseInt(document.body.dataset.userId);
+        let currentDate = new Date().toISOString().split('T')[0];
+        
+        // 日付入力の初期値を設定
+        document.getElementById('dateInput').value = currentDate;
+        
+        // 日付変更時のイベントリスナー
+        document.getElementById('dateInput').addEventListener('change', function(e) {
+            currentDate = e.target.value;
+            loadUserProgress();
+            loadUserTasks();
+        });
+
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/users');
+                const users = await response.json();
+                const user = users.find(u => u.id === userId);
+                
+                if (user) {
+                    document.getElementById('userName').textContent = user.username;
+                    document.getElementById('userMeta').textContent = `登録日: ${new Date(user.created_at).toLocaleDateString('ja-JP')}`;
+                    document.getElementById('pageTitle').innerHTML = `
+                        <div class="suna-logo">
+                            <svg width="60" height="28" viewBox="0 0 115 55">
+                                <!-- 大きな円（右上、明るいターコイズブルー） -->
+                                <circle cx="90" cy="20" r="13" fill="#67E8F9" opacity="0.85"/>
+                                <!-- 中くらいの円（左中央、濃いブルー） -->
+                                <circle cx="73" cy="28" r="8" fill="#2563EB" opacity="0.9"/>
+                                <!-- 小さな円（右下、薄いターコイズ） -->
+                                <circle cx="83" cy="35" r="5" fill="#A7F3D0" opacity="0.75"/>
+                                <!-- テキスト "suna" -->
+                                <text x="0" y="42" fontSize="26" fontWeight="700" fill="#1E293B" fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" letterSpacing="-1.2px">
+                                    suna
+                                </text>
+                            </svg>
+                        </div>
+                        ${user.username} さんの詳細
+                        <span class="suna-badge">Suna</span>
+                    `;
+                }
+            } catch (error) {
+                console.error('ユーザー情報の読み込みエラー:', error);
+            }
+        }
+
+        async function loadUserProgress() {
+            try {
+                const response = await fetch(`/api/users/${userId}/progress?date=${currentDate}`);
+                const progress = await response.json();
+                
+                const container = document.getElementById('progressOverview');
+                const dailyTotal = progress.daily.total;
+                const dailyCompleted = progress.daily.completed;
+                const routineTotal = progress.routine.total;
+                const routineCompleted = progress.routine.completed;
+                
+                const dailyRate = dailyTotal > 0 ? Math.round((dailyCompleted / dailyTotal) * 100) : 0;
+                const routineRate = routineTotal > 0 ? Math.round((routineCompleted / routineTotal) * 100) : 0;
+                
+                container.innerHTML = `
+                    <div class="progress-card">
+                        <div class="progress-number">${dailyRate}%</div>
+                        <div class="progress-label">日次タスク完了率</div>
+                        <div style="font-size: 0.8rem; color: #718096; margin-top: 0.5rem;">
+                            ${dailyCompleted} / ${dailyTotal}
+                        </div>
+                    </div>
+                    <div class="progress-card">
+                        <div class="progress-number">${routineRate}%</div>
+                        <div class="progress-label">定常タスク完了率</div>
+                        <div style="font-size: 0.8rem; color: #718096; margin-top: 0.5rem;">
+                            ${routineCompleted} / ${routineTotal}
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('進捗データの読み込みエラー:', error);
+            }
+        }
+
+        async function loadUserTasks() {
+            try {
+                const response = await fetch(`/api/users/${userId}/tasks?date=${currentDate}`);
+                const data = await response.json();
+                
+                // 日次タスクの表示
+                const dailyContainer = document.getElementById('dailyTasks');
+                if (data.daily_tasks.length === 0) {
+                    dailyContainer.innerHTML = '<div style="text-align: center; color: #718096; padding: 1rem;">この日のタスクはありません</div>';
+                } else {
+                    dailyContainer.innerHTML = data.daily_tasks.map(task => `
+                        <div class="task-item ${task.completed ? 'completed' : ''}">
+                            <div class="task-checkbox ${task.completed ? 'completed' : ''}">
+                                ${task.completed ? '✓' : ''}
+                            </div>
+                            <div class="task-text ${task.completed ? 'completed' : ''} ${task.indent > 0 ? 'indented' : ''}">
+                                ${task.text}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+                
+                // 定常タスクの表示
+                const routineContainer = document.getElementById('routineTasks');
+                if (data.routine_tasks.length === 0) {
+                    routineContainer.innerHTML = '<div style="text-align: center; color: #718096; padding: 1rem;">定常タスクがありません</div>';
+                } else {
+                    routineContainer.innerHTML = data.routine_tasks.map(task => `
+                        <div class="task-item ${task.completed ? 'completed' : ''}">
+                            <div class="task-checkbox ${task.completed ? 'completed' : ''}">
+                                ${task.completed ? '✓' : ''}
+                            </div>
+                            <div class="task-text ${task.completed ? 'completed' : ''}">
+                                ${task.text}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('タスクデータの読み込みエラー:', error);
+            }
+        }
+
+        async function loadWeeklyChart() {
+            try {
+                const response = await fetch(`/api/users/${userId}/weekly`);
+                const weeklyData = await response.json();
+                
+                const container = document.getElementById('weeklyChart');
+                const maxRate = Math.max(...weeklyData.map(d => d.completion_rate));
+                
+                container.innerHTML = `
+                    <div class="chart-bars">
+                        ${weeklyData.map(day => {
+                            const height = maxRate > 0 ? (day.completion_rate / maxRate) * 100 : 0;
+                            const date = new Date(day.date);
+                            const dayLabel = date.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
+                            
+                            return `
+                                <div class="chart-bar" style="height: ${height}%" title="${dayLabel}: ${day.completion_rate}%">
+                                    <div class="chart-value">${day.completion_rate}%</div>
+                                    <div class="chart-label">${dayLabel}</div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            } catch (error) {
+                console.error('週間チャートの読み込みエラー:', error);
+            }
+        }
+
+        // ページ読み込み時にデータを取得
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUserInfo();
+            loadUserProgress();
+            loadUserTasks();
+            loadWeeklyChart();
+        });
+    </script>
+</body>
+</html>

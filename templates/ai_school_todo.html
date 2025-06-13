@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIスクール TODOアプリ</title>
+    <!-- Tailwind CSS CDNを読み込み -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* デフォルトフォントとしてInterを設定 */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f8f8; /* 背景色を薄いグレーに設定 */
+            color: #333; /* テキスト色を濃いグレーに設定 */
+        }
+        
+        /* AIスクールロゴのスタイル */
+        .logo {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+            font-weight: 700;
+            text-shadow: none;
+        }
+        
+        .logo-icon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 8px;
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+        }
+        
+        /* 完了済みタスクのテキストに打ち消し線と色を設定 */
+        .task-item.completed .task-text {
+            text-decoration: line-through;
+            color: #a0a0a0; /* 完了済みタスクはより薄いグレーに */
+        }
+        
+        /* インデントレベルに応じた左パディング */
+        .indent-0 { padding-left: 0.5rem; } /* チェックボックスとテキストの間のスペース確保 */
+        .indent-1 { padding-left: 2.5rem; }
+        .indent-2 { padding-left: 4.5rem; }
+        .indent-3 { padding-left: 6.5rem; }
+        .indent-4 { padding-left: 8.5rem; }
+        
+        /* ドラッグ中のアイテムのスタイル */
+        .dragging {
+            opacity: 0.5;
+            border: 2px dashed #a0a0a0;
+            background-color: #f0f0f0;
+        }
+        
+        /* カスタムチェックボックスのスタイルを調整 */
+        .form-checkbox {
+            border-width: 2px; /* 少し太めの境界線で存在感を出す */
+        }
+        
+        /* ホバー効果 */
+        .task-item:hover {
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        /* フォーカススタイル */
+        .task-text:focus {
+            outline: none;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 4px;
+            padding: 2px 4px;
+        }
+
+        /* インデントスタイル - タスクアイテムのみに適用 */
+        .task-item.indent-0 { margin-left: 0 !important; }
+        .task-item.indent-1 { margin-left: 1rem !important; }
+        .task-item.indent-2 { margin-left: 2rem !important; }
+        .task-item.indent-3 { margin-left: 3rem !important; }
+        .task-item.indent-4 { margin-left: 4rem !important; }
+
+        /* 親子関係を示す接続線 */
+        .task-item[class*="indent-"]:not(.indent-0) {
+            position: relative;
+        }
+
+        /* 丸いチェックボックスのカスタムスタイル */
+        .custom-checkbox {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #d1d5db;
+            border-radius: 50%;
+            background-color: white;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s ease;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .custom-checkbox:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .custom-checkbox:checked {
+            background-color: #3b82f6;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        .custom-checkbox:checked::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .custom-checkbox:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+        }
+
+        /* 完了済みタスクのスタイル */
+        .task-completed {
+            opacity: 0.6;
+        }
+
+        .task-completed .task-text {
+            text-decoration: line-through;
+            color: #6b7280;
+        }
+
+        /* シンプルなインデントスタイル */
+        .task-item.indent-1 {
+            padding-left: 2rem;
+        }
+
+        .task-item.indent-2 {
+            padding-left: 4rem;
+        }
+
+        .task-item.indent-3 {
+            padding-left: 6rem;
+        }
+
+        .task-item.indent-4 {
+            padding-left: 8rem;
+        }
+
+        /* 紙吹雪アニメーション */
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-10px) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+    <!-- メインコンテナ: 中央寄せ、最大幅設定、パディング追加 -->
+    <div class="container mx-auto p-4 flex-grow max-w-2xl">
+        <!-- ヘッダー部分 -->
+        <header class="text-center mb-8 relative">
+            <!-- ログアウトボタン -->
+            <a href="/logout" class="absolute top-0 right-0 bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-lg text-sm transition-colors">
+                ログアウト
+            </a>
+            <div class="flex items-center justify-center mb-4">
+                <!-- Sunaロゴ -->
+                <div class="flex items-center relative mr-4">
+                    <svg width="115" height="55" viewBox="0 0 115 55" class="flex-shrink-0">
+                        <!-- 大きな円（右上、明るいターコイズブルー） -->
+                        <circle cx="90" cy="20" r="13" fill="#67E8F9" opacity="0.85"/>
+                        <!-- 中くらいの円（左中央、濃いブルー） -->
+                        <circle cx="73" cy="28" r="8" fill="#2563EB" opacity="0.9"/>
+                        <!-- 小さな円（右下、薄いターコイズ） -->
+                        <circle cx="83" cy="35" r="5" fill="#A7F3D0" opacity="0.75"/>
+                        <!-- テキスト "suna" -->
+                        <text x="0" y="42" font-size="26" font-weight="700" fill="#1E293B" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" letter-spacing="-1.2px">
+                            suna
+                        </text>
+                    </svg>
+                </div>
+                <div class="text-left">
+                    <h1 class="text-3xl font-bold text-gray-800">Suna ToDo</h1>
+                    <p class="text-lg text-gray-600">あなたの今日の学習を迷わず進めよう！</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- 日付ナビゲーションと表示エリア -->
+        <div class="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm mb-6">
+            <!-- 前の日へ移動ボタン -->
+            <button id="prevDay" class="p-2 rounded-full hover:bg-gray-200 text-blue-600 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+            </button>
+            <!-- 現在の日付と曜日を表示 -->
+            <div class="flex flex-col items-center">
+                <span id="currentDateDisplay" class="text-xl font-semibold text-gray-800"></span>
+                <span id="dayOfWeekDisplay" class="text-sm text-gray-500"></span>
+            </div>
+            <!-- 次の日へ移動ボタン -->
+            <button id="nextDay" class="p-2 rounded-full hover:bg-gray-200 text-blue-600 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- 定常TODOリスト表示エリア -->
+        <div class="mb-6">
+            <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="mr-2">🔄</span>
+                定常TODO
+            </h3>
+            <ul id="routineTodoList" class="space-y-2">
+                <!-- JavaScriptによって定常TODOアイテムがここに挿入されます -->
+            </ul>
+        </div>
+
+        <!-- 本日のTODOリスト表示エリア -->
+        <div class="mb-6">
+            <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="mr-2">📋</span>
+                本日のTODO
+            </h3>
+            <ul id="todayTodoList" class="space-y-2">
+                <!-- JavaScriptによって本日のTODOアイテムがここに挿入されます -->
+            </ul>
+        </div>
+
+        <!-- 学習進捗エリア -->
+        <div class="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg mt-8">
+            <h3 class="text-lg font-semibold text-gray-800 mb-2">📊 今日の学習進捗</h3>
+            <div class="flex items-center space-x-4">
+                <div class="flex-1">
+                    <div class="bg-gray-200 rounded-full h-3">
+                        <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+                <span id="progressText" class="text-sm font-medium text-gray-700">0%</span>
+            </div>
+            <p class="text-sm text-gray-600 mt-2">完了したタスク: <span id="completedCount">0</span> / <span id="totalCount">0</span></p>
+        </div>
+    </div>
+
+    <script>
+        // グローバルデータストア
+        let dailyTasks = []; 
+        let routineTasks = [];
+        let currentDate = new Date(); 
+
+        // ユニークなIDを生成するユーティリティ関数
+        function generateId() {
+            return 'task_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // 日付を日本語でフォーマットするヘルパー関数
+        function formatDate(date) {
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            return date.toLocaleDateString('ja-JP', options);
+        }
+
+        // 曜日を取得するヘルパー関数
+        function getDayOfWeek(date) {
+            const days = ['日', '月', '火', '水', '木', '金', '土'];
+            return `(${days[date.getDay()]})`;
+        }
+
+        // APIからタスクを取得する関数
+        async function loadTasks() {
+            try {
+                const dateStr = currentDate.toISOString().slice(0, 10);
+                const response = await fetch(`/api/tasks/${dateStr}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    dailyTasks = data.daily_tasks || [];
+                    routineTasks = data.routine_tasks || [];
+                    renderTasks();
+                    updateProgress();
+                } else {
+                    console.error('Error loading tasks:', data.error);
+                }
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+            }
+        }
+
+        // 進捗バーを更新する関数
+        function updateProgress() {
+            const allTasks = [...dailyTasks, ...routineTasks];
+            const completedTasks = allTasks.filter(task => task.completed);
+            const total = allTasks.length;
+            const completed = completedTasks.length;
+            const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+            // 前回の進捗を記録
+            const previousPercentage = parseInt(document.getElementById('progressText').textContent) || 0;
+
+            document.getElementById('progressBar').style.width = `${percentage}%`;
+            document.getElementById('progressText').textContent = `${percentage}%`;
+            document.getElementById('completedCount').textContent = completed;
+            document.getElementById('totalCount').textContent = total;
+
+            // 100%達成時に紙吹雪を表示（前回が100%未満の場合のみ）
+            if (percentage === 100 && previousPercentage < 100 && total > 0) {
+                createConfetti();
+            }
+        }
+
+        // 現在の日付に基づいてタスクをレンダリングする関数
+        function renderTasks() {
+            const routineList = document.getElementById('routineTodoList');
+            const todayList = document.getElementById('todayTodoList');
+
+            routineList.innerHTML = '';
+            todayList.innerHTML = '';
+
+            // 定常TODOのレンダリング
+            routineTasks.forEach((task, index) => {
+                const li = createTaskElement({
+                    ...task,
+                    type: 'routine'
+                });
+                routineList.appendChild(li);
+            });
+
+            // 定常TODOの親子関係を適用
+            applyParentChildRelationships(routineList, routineTasks);
+
+            // 定常TODOが空の場合、プレースホルダーを追加（初回ロード時のみ）
+            if (routineTasks.length === 0 && !document.querySelector('.routine-placeholder-added')) {
+                document.body.classList.add('routine-placeholder-added');
+                addNewRoutineTask('');
+            }
+
+            // 本日のTODOのレンダリング
+            const sortedDailyTasks = [...dailyTasks].sort((a, b) => {
+                if (a.completed && !b.completed) return 1;
+                if (!a.completed && b.completed) return -1;
+                return (a.position || 0) - (b.position || 0);
+            });
+
+            sortedDailyTasks.forEach((task, index) => {
+                const li = createTaskElement({
+                    ...task,
+                    type: 'daily'
+                });
+                todayList.appendChild(li);
+            });
+
+            // 本日のTODOの親子関係を適用
+            applyParentChildRelationships(todayList, sortedDailyTasks);
+
+            // 本日のTODOが空の場合、プレースホルダーを追加（初回ロード時のみ）
+            if (dailyTasks.length === 0 && !document.querySelector('.daily-placeholder-added')) {
+                document.body.classList.add('daily-placeholder-added');
+                addNewTask('', true);
+            }
+
+            // 日付表示を更新
+            document.getElementById('currentDateDisplay').textContent = formatDate(currentDate);
+            document.getElementById('dayOfWeekDisplay').textContent = getDayOfWeek(currentDate);
+            
+            updateProgress();
+        }
+
+        // 親子関係のCSSクラスを適用する関数
+        function applyParentChildRelationships(container, tasks) {
+            const taskElements = container.querySelectorAll('.task-item');
+            
+            tasks.forEach((task, index) => {
+                const element = taskElements[index];
+                if (!element) return;
+
+                const currentIndent = task.indent || 0;
+                
+                // 完了済みタスクのスタイル適用
+                if (tasks[index].completed) {
+                    element.classList.add('task-completed');
+                } else {
+                    element.classList.remove('task-completed');
+                }
+            });
+        }
+
+
+        // 個々のタスク要素（<li>）を作成する関数
+        function createTaskElement(task) {
+            const li = document.createElement('li');
+            li.id = `task-${task.id}`;
+            li.className = `task-item flex items-center py-3 px-2 transition duration-200 ease-in-out ${task.completed ? 'completed' : 'text-gray-800'} indent-${Math.min(task.indent || 0, 4)}`;
+            li.draggable = task.type === 'daily';
+
+            // チェックボックスの作成
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = task.completed;
+            checkbox.className = 'custom-checkbox';
+            checkbox.addEventListener('change', () => toggleTaskCompleted(task.id, task.type));
+            li.appendChild(checkbox);
+
+            // タスクテキストの表示
+            const taskTextSpan = document.createElement('span');
+            taskTextSpan.textContent = task.text;
+            taskTextSpan.contentEditable = 'true';
+            taskTextSpan.className = `task-text flex-grow focus:outline-none focus:ring-0 ${task.completed ? 'line-through text-gray-500' : ''}`;
+            taskTextSpan.setAttribute('role', 'textbox');
+
+            if (task.type === 'daily') {
+                taskTextSpan.addEventListener('blur', () => saveTaskText(task.id, taskTextSpan.textContent));
+                taskTextSpan.addEventListener('keydown', (e) => {
+                    console.log('Daily task keydown:', e.key, 'for task:', task.id);
+                    handleTaskKeydown(e, task.id, taskTextSpan);
+                });
+            } else if (task.type === 'routine') {
+                taskTextSpan.addEventListener('blur', () => saveRoutineTaskText(task.id, taskTextSpan.textContent));
+                taskTextSpan.addEventListener('keydown', (e) => {
+                    console.log('Routine task keydown:', e.key, 'for task:', task.id);
+                    handleRoutineTaskKeydown(e, task.id, taskTextSpan);
+                });
+            }
+            li.appendChild(taskTextSpan);
+
+            // インデント操作ボタンは削除（シンプルなUIにするため）
+
+            return li;
+        }
+
+        // タスクのキーボードイベントを処理
+        async function handleTaskKeydown(e, taskId, textElement) {
+            console.log('handleTaskKeydown called with key:', e.key);
+            
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // テキストを保存してから新しいタスクを追加
+                await saveTaskText(taskId, textElement.textContent);
+                
+                const currentIndex = dailyTasks.findIndex(t => t.id === taskId);
+                const task = dailyTasks[currentIndex];
+                if (task && currentIndex !== -1) {
+                    await addNewTaskAtPosition('', false, task.indent || 0, currentIndex + 1);
+                }
+            } else if (e.key === 'Tab') {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Tab key pressed for daily task:', taskId);
+                const task = dailyTasks.find(t => t.id === taskId);
+                if (task) {
+                    const newIndent = e.shiftKey
+                        ? Math.max(0, (task.indent || 0) - 1)
+                        : Math.min(4, (task.indent || 0) + 1);
+                    console.log('Daily task indent changing from', task.indent, 'to', newIndent);
+                    updateTaskIndent(taskId, newIndent);
+                }
+            } else if (e.key === 'Backspace' && textElement.textContent.trim() === '') {
+                // 空のタスクを削除して前のタスクにフォーカス
+                e.preventDefault();
+                focusPreviousTask(taskId);
+                deleteTask(taskId);
+            }
+        }
+
+        // 前のタスクにフォーカスを移動
+        function focusPreviousTask(currentTaskId) {
+            const currentIndex = dailyTasks.findIndex(t => t.id === currentTaskId);
+            if (currentIndex > 0) {
+                const previousTask = dailyTasks[currentIndex - 1];
+                setTimeout(() => {
+                    const previousSpan = document.querySelector(`#task-${previousTask.id} .task-text`);
+                    if (previousSpan) {
+                        previousSpan.focus();
+                        // カーソルを末尾に移動
+                        const range = document.createRange();
+                        const sel = window.getSelection();
+                        range.selectNodeContents(previousSpan);
+                        range.collapse(false);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                }, 50);
+            }
+        }
+
+        // タスクの完了状態を切り替え
+        async function toggleTaskCompleted(taskId, type) {
+            try {
+                if (type === 'daily') {
+                    const task = dailyTasks.find(t => t.id === taskId);
+                    if (task) {
+                        const response = await fetch(`/api/tasks/${taskId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ completed: !task.completed })
+                        });
+                        
+                        if (response.ok) {
+                            task.completed = !task.completed;
+                            renderTasks();
+                        }
+                    }
+                } else if (type === 'routine') {
+                    const response = await fetch('/api/routine/toggle', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            routine_id: taskId,
+                            date: currentDate.toISOString().slice(0, 10)
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        const task = routineTasks.find(t => t.id === taskId);
+                        if (task) {
+                            task.completed = data.completed;
+                            renderTasks();
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error toggling task:', error);
+            }
+        }
+
+        // タスクのテキストを保存
+        async function saveTaskText(taskId, text) {
+            try {
+                const trimmedText = text.trim();
+                const task = dailyTasks.find(t => t.id === taskId);
+                
+                if (!task) return;
+                
+                // 空のタスクの自動削除を無効化（手動削除のみ）
+                if (trimmedText !== task.text) {
+                    const response = await fetch(`/api/tasks/${taskId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: trimmedText })
+                    });
+                    
+                    if (response.ok) {
+                        task.text = trimmedText;
+                        updateProgress(); // 個別に進捗更新
+                    }
+                }
+            } catch (error) {
+                console.error('Error saving task text:', error);
+            }
+        }
+
+        // 新しいタスクを追加
+        async function addNewTask(text = '', isPlaceholder = false, indent = 0) {
+            try {
+                const taskId = generateId();
+                const dateStr = currentDate.toISOString().slice(0, 10);
+                
+                const response = await fetch('/api/tasks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: taskId,
+                        text: text,
+                        date: dateStr,
+                        indent: indent
+                    })
+                });
+                
+                if (response.ok) {
+                    dailyTasks.push({
+                        id: taskId,
+                        text: text,
+                        completed: false,
+                        date: dateStr,
+                        indent: indent,
+                        position: dailyTasks.length
+                    });
+                    
+                    renderTasks();
+                    
+                    // 新しいタスクにフォーカス
+                    setTimeout(() => {
+                        const newSpan = document.querySelector(`#task-${taskId} .task-text`);
+                        if (newSpan) {
+                            newSpan.focus();
+                        }
+                    }, 100);
+                }
+            } catch (error) {
+                console.error('Error adding task:', error);
+            }
+        }
+
+        // 指定した位置に新しいタスクを追加
+        async function addNewTaskAtPosition(text = '', isPlaceholder = false, indent = 0, insertIndex = 0) {
+            try {
+                const taskId = generateId();
+                const dateStr = currentDate.toISOString().slice(0, 10);
+                
+                const response = await fetch('/api/tasks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: taskId,
+                        text: text,
+                        date: dateStr,
+                        indent: indent
+                    })
+                });
+                
+                if (response.ok) {
+                    // 指定した位置にタスクを挿入
+                    const newTask = {
+                        id: taskId,
+                        text: text,
+                        completed: false,
+                        date: dateStr,
+                        indent: indent,
+                        position: insertIndex
+                    };
+                    
+                    // 挿入位置より後のタスクのpositionを更新
+                    dailyTasks.forEach(task => {
+                        if (task.position >= insertIndex) {
+                            task.position += 1;
+                        }
+                    });
+                    
+                    // 新しいタスクを挿入
+                    dailyTasks.splice(insertIndex, 0, newTask);
+                    
+                    renderTasks();
+                    
+                    // 新しいタスクにフォーカス
+                    setTimeout(() => {
+                        const newSpan = document.querySelector(`#task-${taskId} .task-text`);
+                        if (newSpan) {
+                            newSpan.focus();
+                        }
+                    }, 100);
+                }
+            } catch (error) {
+                console.error('Error adding task at position:', error);
+            }
+        }
+
+        // 定常タスクのキーボードイベントを処理
+        async function handleRoutineTaskKeydown(e, taskId, textElement) {
+            console.log('handleRoutineTaskKeydown called with key:', e.key);
+            
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // テキストを保存してから新しいタスクを追加
+                await saveRoutineTaskText(taskId, textElement.textContent);
+                
+                const currentIndex = routineTasks.findIndex(t => t.id === taskId);
+                const task = routineTasks[currentIndex];
+                if (task && currentIndex !== -1) {
+                    await addNewRoutineTaskAtPosition('', task.indent || 0, currentIndex + 1);
+                }
+            } else if (e.key === 'Tab') {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Tab key pressed for routine task:', taskId);
+                const task = routineTasks.find(t => t.id === taskId);
+                if (task) {
+                    const newIndent = e.shiftKey
+                        ? Math.max(0, (task.indent || 0) - 1)
+                        : Math.min(4, (task.indent || 0) + 1);
+                    console.log('Routine task indent changing from', task.indent, 'to', newIndent);
+                    updateRoutineTaskIndent(taskId, newIndent);
+                }
+            } else if (e.key === 'Backspace' && textElement.textContent.trim() === '') {
+                // 空のタスクを削除して前のタスクにフォーカス
+                e.preventDefault();
+                focusPreviousRoutineTask(taskId);
+                deleteRoutineTask(taskId);
+            }
+        }
+
+        // 前の定常タスクにフォーカスを移動
+        function focusPreviousRoutineTask(currentTaskId) {
+            const currentIndex = routineTasks.findIndex(t => t.id === currentTaskId);
+            if (currentIndex > 0) {
+                const previousTask = routineTasks[currentIndex - 1];
+                setTimeout(() => {
+                    const previousSpan = document.querySelector(`#task-${previousTask.id} .task-text`);
+                    if (previousSpan) {
+                        previousSpan.focus();
+                        // カーソルを末尾に移動
+                        const range = document.createRange();
+                        const sel = window.getSelection();
+                        range.selectNodeContents(previousSpan);
+                        range.collapse(false);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                }, 50);
+            }
+        }
+
+        // 定常タスクのテキストを保存
+        async function saveRoutineTaskText(taskId, text) {
+            try {
+                const trimmedText = text.trim();
+                const task = routineTasks.find(t => t.id === taskId);
+                
+                if (!task) return;
+                
+                // 空のタスクの自動削除を無効化（手動削除のみ）
+                if (trimmedText !== task.text) {
+                    const response = await fetch(`/api/routine/${taskId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: trimmedText })
+                    });
+                    
+                    if (response.ok) {
+                        task.text = trimmedText;
+                        updateProgress(); // 個別に進捗更新
+                    }
+                }
+            } catch (error) {
+                console.error('Error saving routine task text:', error);
+            }
+        }
+
+        // 新しい定常タスクを追加
+        async function addNewRoutineTask(text = '', indent = 0) {
+            try {
+                const taskId = generateId();
+                
+                const response = await fetch('/api/routine', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: taskId,
+                        text: text,
+                        indent: indent
+                    })
+                });
+                
+                if (response.ok) {
+                    routineTasks.push({
+                        id: taskId,
+                        text: text,
+                        indent: indent,
+                        position: routineTasks.length
+                    });
+                    
+                    renderTasks();
+                    
+                    // 新しいタスクにフォーカス
+                    setTimeout(() => {
+                        const newSpan = document.querySelector(`#task-${taskId} .task-text`);
+                        if (newSpan) {
+                            newSpan.focus();
+                        }
+                    }, 100);
+                }
+            } catch (error) {
+                console.error('Error adding routine task:', error);
+            }
+        }
+
+        // 指定した位置に新しい定常タスクを追加
+        async function addNewRoutineTaskAtPosition(text = '', indent = 0, insertIndex = 0) {
+            try {
+                const taskId = generateId();
+                
+                const response = await fetch('/api/routine', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: taskId,
+                        text: text,
+                        indent: indent
+                    })
+                });
+                
+                if (response.ok) {
+                    // 指定した位置にタスクを挿入
+                    const newTask = {
+                        id: taskId,
+                        text: text,
+                        indent: indent,
+                        position: insertIndex
+                    };
+                    
+                    // 挿入位置より後のタスクのpositionを更新
+                    routineTasks.forEach(task => {
+                        if (task.position >= insertIndex) {
+                            task.position += 1;
+                        }
+                    });
+                    
+                    // 新しいタスクを挿入
+                    routineTasks.splice(insertIndex, 0, newTask);
+                    
+                    renderTasks();
+                    
+                    // 新しいタスクにフォーカス
+                    setTimeout(() => {
+                        const newSpan = document.querySelector(`#task-${taskId} .task-text`);
+                        if (newSpan) {
+                            newSpan.focus();
+                        }
+                    }, 100);
+                }
+            } catch (error) {
+                console.error('Error adding routine task at position:', error);
+            }
+        }
+
+        // 紙吹雪アニメーション
+        function createConfetti() {
+            const confettiContainer = document.createElement('div');
+            confettiContainer.id = 'confetti-container';
+            confettiContainer.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                pointer-events: none;
+                z-index: 9999;
+            `;
+            document.body.appendChild(confettiContainer);
+
+            const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dda0dd', '#98d8c8'];
+            
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.style.cssText = `
+                    position: absolute;
+                    width: 10px;
+                    height: 10px;
+                    background-color: ${colors[Math.floor(Math.random() * colors.length)]};
+                    top: -10px;
+                    left: ${Math.random() * 100}vw;
+                    animation: confetti-fall 3s linear forwards;
+                    transform: rotate(${Math.random() * 360}deg);
+                `;
+                confettiContainer.appendChild(confetti);
+            }
+
+            // アニメーション後にコンテナを削除
+            setTimeout(() => {
+                document.body.removeChild(confettiContainer);
+            }, 3000);
+        }
+
+        // 定常タスクを削除
+        async function deleteRoutineTask(taskId) {
+            try {
+                const response = await fetch(`/api/routine/${taskId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    routineTasks = routineTasks.filter(t => t.id !== taskId);
+                    
+                    // 最後のタスクが削除された場合、新しい空のタスクを自動作成
+                    if (routineTasks.length === 0) {
+                        await addNewRoutineTask('');
+                    } else {
+                        renderTasks();
+                    }
+                }
+            } catch (error) {
+                console.error('Error deleting routine task:', error);
+            }
+        }
+
+        // タスクを削除
+        async function deleteTask(taskId) {
+            try {
+                const response = await fetch(`/api/tasks/${taskId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    dailyTasks = dailyTasks.filter(t => t.id !== taskId);
+                    
+                    // 最後のタスクが削除された場合、新しい空のタスクを自動作成
+                    if (dailyTasks.length === 0) {
+                        await addNewTask('', false, 0);
+                    } else {
+                        renderTasks();
+                    }
+                }
+            } catch (error) {
+                console.error('Error deleting task:', error);
+            }
+        }
+
+        // タスクのインデントを更新
+        async function updateTaskIndent(taskId, newIndent) {
+            try {
+                const response = await fetch(`/api/tasks/${taskId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ indent: newIndent })
+                });
+                
+                if (response.ok) {
+                    const task = dailyTasks.find(t => t.id === taskId);
+                    if (task) {
+                        task.indent = newIndent;
+                        console.log('Updated daily task indent to:', newIndent);
+                        
+                        // UI更新を確実にするために少し遅延
+                        setTimeout(() => {
+                            renderTasks();
+                        }, 10);
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating task indent:', error);
+            }
+        }
+
+        // 定常タスクのインデントを更新
+        async function updateRoutineTaskIndent(taskId, newIndent) {
+            try {
+                const response = await fetch(`/api/routine/${taskId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ indent: newIndent })
+                });
+                
+                if (response.ok) {
+                    const task = routineTasks.find(t => t.id === taskId);
+                    if (task) {
+                        task.indent = newIndent;
+                        console.log('Updated routine task indent to:', newIndent);
+                        
+                        // UI更新を確実にするために少し遅延
+                        setTimeout(() => {
+                            renderTasks();
+                        }, 10);
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating routine task indent:', error);
+            }
+        }
+
+        // DOMContentLoadedイベントリスナー
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTasks();
+
+            // 日付変更ボタン
+            document.getElementById('prevDay').addEventListener('click', () => {
+                currentDate.setDate(currentDate.getDate() - 1);
+                loadTasks();
+            });
+
+            document.getElementById('nextDay').addEventListener('click', () => {
+                const tomorrow = new Date(currentDate);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                if (tomorrow <= today) {
+                    currentDate.setDate(currentDate.getDate() + 1);
+                    loadTasks();
+                }
+            });
+
+            // 定常タスク追加ボタンは削除済み
+        });
+    </script>
+</body>
+</html> 

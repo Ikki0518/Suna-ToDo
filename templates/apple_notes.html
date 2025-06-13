@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📝 メモ</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            background: #f2f2f7;
+            height: 100vh;
+            overflow: hidden;
+            color: #000;
+        }
+        
+        .app-container {
+            display: flex;
+            height: 100vh;
+            background: #fff;
+        }
+        
+        /* 左サイドバー（フォルダリスト） */
+        .sidebar {
+            width: 240px;
+            background: #f9f9f9;
+            border-right: 1px solid #d1d1d6;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #d1d1d6;
+            background: #f9f9f9;
+        }
+        
+        .sidebar-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 8px;
+        }
+        
+        .folders-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .folder-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 20px;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+            border-left: 3px solid transparent;
+        }
+        
+        .folder-item:hover {
+            background: #e5e5ea;
+        }
+        
+        .folder-item.active {
+            background: #007aff;
+            color: white;
+            border-left-color: #0051d5;
+        }
+        
+        .folder-icon {
+            font-size: 16px;
+            margin-right: 12px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .folder-info {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .folder-name {
+            font-size: 14px;
+            font-weight: 400;
+        }
+        
+        .folder-count {
+            font-size: 12px;
+            color: #8e8e93;
+            font-weight: 500;
+        }
+        
+        .folder-item.active .folder-count {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        /* 中央パネル（TODOリスト） */
+        .notes-list {
+            width: 320px;
+            background: #fff;
+            border-right: 1px solid #d1d1d6;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .notes-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #d1d1d6;
+            background: #fff;
+        }
+        
+        .notes-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 4px;
+        }
+        
+        .notes-subtitle {
+            font-size: 13px;
+            color: #8e8e93;
+        }
+        
+        .notes-content {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .date-section {
+            padding: 12px 20px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #8e8e93;
+            background: #f9f9f9;
+            border-bottom: 1px solid #f0f0f0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .todo-item {
+            padding: 12px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: flex-start;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+        
+        .todo-item:hover {
+            background: #f9f9f9;
+        }
+        
+        .todo-item.completed {
+            opacity: 0.6;
+        }
+        
+        .todo-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 1.5px solid #c7c7cc;
+            border-radius: 50%;
+            margin-right: 12px;
+            margin-top: 2px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+        
+        .todo-checkbox:hover {
+            border-color: #007aff;
+        }
+        
+        .todo-checkbox.checked {
+            background: #34c759;
+            border-color: #34c759;
+        }
+        
+        .todo-checkbox.checked::after {
+            content: '✓';
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .todo-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .todo-text {
+            font-size: 14px;
+            line-height: 1.4;
+            color: #1d1d1f;
+            word-wrap: break-word;
+            margin-bottom: 2px;
+        }
+        
+        .todo-item.completed .todo-text {
+            text-decoration: line-through;
+            color: #8e8e93;
+        }
+        
+        .todo-meta {
+            font-size: 12px;
+            color: #8e8e93;
+        }
+        
+        /* 右側詳細パネル */
+        .detail-panel {
+            flex: 1;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .detail-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #d1d1d6;
+            background: #fff;
+        }
+        
+        .detail-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1d1d1f;
+        }
+        
+        .detail-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .add-todo-container {
+            padding: 15px 20px;
+            border-top: 1px solid #f0f0f0;
+            background: #fff;
+        }
+        
+        .add-todo-input {
+            width: 100%;
+            border: none;
+            outline: none;
+            font-size: 14px;
+            padding: 8px 0;
+            font-family: inherit;
+            color: #1d1d1f;
+            background: transparent;
+        }
+        
+        .add-todo-input::placeholder {
+            color: #c7c7cc;
+        }
+        
+        /* 空状態 */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #8e8e93;
+            text-align: center;
+        }
+        
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        .empty-state-title {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .empty-state-subtitle {
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        /* レスポンシブ */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                left: -240px;
+                z-index: 100;
+                transition: left 0.3s ease;
+            }
+            
+            .sidebar.open {
+                left: 0;
+            }
+            
+            .notes-list {
+                width: 100%;
+            }
+            
+            .detail-panel {
+                display: none;
+            }
+        }
+        
+        /* カスタマイズ */
+        .todo-item.header-item {
+            background: #f9f9f9;
+            font-weight: 600;
+            color: #1d1d1f;
+        }
+        
+        .todo-item.header-item .todo-checkbox {
+            visibility: hidden;
+        }
+        
+        /* アニメーション */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .todo-item {
+            animation: slideIn 0.2s ease forwards;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 左サイドバー -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">フォルダ</div>
+            </div>
+            
+            <div class="folders-list">
+                {% for folder in folders %}
+                <div class="folder-item {% if folder.id == current_folder_id %}active{% endif %}" 
+                     onclick="selectFolder({{ folder.id }})">
+                    <div class="folder-icon">{{ folder.icon }}</div>
+                    <div class="folder-info">
+                        <div class="folder-name">{{ folder.name }}</div>
+                        <div class="folder-count">{{ folder.todo_count }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- 中央パネル -->
+        <div class="notes-list">
+            <div class="notes-header">
+                {% if current_folder %}
+                <div class="notes-title">{{ current_folder.name }}</div>
+                <div class="notes-subtitle">{{ todos|length }}個のメモ</div>
+                {% else %}
+                <div class="notes-title">メモが見つかりません</div>
+                {% endif %}
+            </div>
+            
+            <div class="notes-content">
+                {% if todos %}
+                    {% set last_date = "" %}
+                    {% for todo in todos %}
+                        {% if todo.date_section != last_date %}
+                            <div class="date-section">{{ todo.date_section }}</div>
+                            {% set last_date = todo.date_section %}
+                        {% endif %}
+                        
+                        {% if todo.content.startswith('■') %}
+                            <div class="todo-item header-item">
+                                <div class="todo-checkbox"></div>
+                                <div class="todo-content">
+                                    <div class="todo-text">{{ todo.content[1:] }}</div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="todo-item {% if todo.completed %}completed{% endif %}" data-id="{{ todo.id }}">
+                                <div class="todo-checkbox {% if todo.completed %}checked{% endif %}" 
+                                     onclick="toggleTodo({{ todo.id }})"></div>
+                                <div class="todo-content">
+                                    <div class="todo-text" 
+                                         contenteditable="true"
+                                         onblur="updateTodo({{ todo.id }}, this.textContent)"
+                                         onkeypress="handleTodoKeyPress(event, {{ todo.id }})">{{ todo.content[1:] if todo.content.startswith(('○', '✓')) else todo.content }}</div>
+                                    {% if todo.completed_at %}
+                                    <div class="todo-meta">完了済み</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📝</div>
+                        <div class="empty-state-title">メモがありません</div>
+                        <div class="empty-state-subtitle">下の入力欄から新しいメモを追加してください</div>
+                    </div>
+                {% endif %}
+            </div>
+            
+            {% if current_folder %}
+            <div class="add-todo-container">
+                <input type="text" 
+                       class="add-todo-input" 
+                       id="todoInput"
+                       placeholder="新しいメモ..."
+                       onkeypress="handleAddTodo(event)">
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- 右側詳細パネル -->
+        <div class="detail-panel">
+            {% if current_folder %}
+            <div class="detail-header">
+                <div class="detail-title">{{ current_folder.name }}</div>
+            </div>
+            
+            <div class="detail-content">
+                <div class="empty-state">
+                    <div class="empty-state-icon">{{ current_folder.icon }}</div>
+                    <div class="empty-state-title">{{ current_folder.name }}</div>
+                    <div class="empty-state-subtitle">{{ todos|length }}個のアイテム<br>{{ todos|selectattr('completed')|list|length }}個完了済み</div>
+                </div>
+            </div>
+            {% else %}
+            <div class="detail-content">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📁</div>
+                    <div class="empty-state-title">フォルダを選択</div>
+                    <div class="empty-state-subtitle">左側からフォルダを選択してください</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        function selectFolder(folderId) {
+            window.location.href = `/?folder=${folderId}`;
+        }
+        
+        function handleAddTodo(event) {
+            if (event.key === 'Enter') {
+                const input = event.target;
+                const content = input.value.trim();
+                
+                if (content) {
+                    fetch('/add', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ 
+                            folder_id: {{ current_folder_id or 1 }},
+                            content: content
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            console.error('Error adding todo:', data.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+                    
+                    input.value = '';
+                }
+            }
+        }
+        
+        function toggleTodo(todoId) {
+            fetch(`/toggle/${todoId}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    console.error('Error toggling todo:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+        
+        function updateTodo(todoId, content) {
+            const trimmedContent = content.trim();
+            if (trimmedContent) {
+                fetch(`/update/${todoId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ content: trimmedContent })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        console.error('Error updating todo:', data.error);
+                        location.reload();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    location.reload();
+                });
+            }
+        }
+        
+        function handleTodoKeyPress(event, todoId) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                event.target.blur();
+                document.getElementById('todoInput').focus();
+            }
+        }
+        
+        // ページ読み込み時に入力欄にフォーカス
+        window.addEventListener('load', function() {
+            const todoInput = document.getElementById('todoInput');
+            if (todoInput) {
+                todoInput.focus();
+            }
+        });
+    </script>
+</body>
+</html> 

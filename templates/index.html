@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📝 TODO - Suna AI</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #2c3e50;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            position: relative;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><defs><radialGradient id="a"><stop offset="20%" stop-color="%23fff" stop-opacity="0.1"/><stop offset="100%" stop-color="%23fff" stop-opacity="0"/></radialGradient></defs><rect width="100" height="20" fill="url(%23a)"/></svg>') repeat;
+            opacity: 0.3;
+        }
+        
+        .header-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .date-selector {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .date-input {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            padding: 10px 15px;
+            color: white;
+            font-size: 16px;
+        }
+        
+        .date-input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        
+        .todo-container {
+            padding: 0;
+        }
+        
+        .todo-input-container {
+            padding: 25px;
+            border-bottom: 2px solid #f8f9fa;
+            background: #fdfdfd;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .todo-input {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            padding: 15px 20px;
+            border-radius: 10px;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+        
+        .todo-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.15);
+            transform: translateY(-1px);
+        }
+        
+        .todo-input::placeholder {
+            color: #a0aec0;
+            font-style: italic;
+        }
+        
+        .level-selector {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 14px;
+            color: #4a5568;
+        }
+        
+        .add-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 15px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .add-btn:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+        
+        .todos-list {
+            padding: 0;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .todo-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 20px 25px;
+            border-bottom: 1px solid #edf2f7;
+            transition: all 0.3s ease;
+            background: white;
+            position: relative;
+        }
+        
+        .todo-item.level-1 {
+            margin-left: 30px;
+            border-left: 3px solid #667eea;
+            background: #f7fafc;
+        }
+        
+        .todo-item.level-2 {
+            margin-left: 60px;
+            border-left: 3px solid #9f7aea;
+            background: #faf5ff;
+        }
+        
+        .todo-item:hover {
+            background: #f8f9fa;
+            transform: translateX(3px);
+        }
+        
+        .todo-item.completed {
+            background: #f0fff4;
+            opacity: 0.7;
+        }
+        
+        .todo-item.completed .todo-text {
+            text-decoration: line-through;
+            color: #68d391;
+        }
+        
+        .todo-checkbox {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #cbd5e0;
+            border-radius: 6px;
+            margin-right: 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        
+        .todo-checkbox:hover {
+            border-color: #667eea;
+            transform: scale(1.1);
+        }
+        
+        .todo-checkbox.checked {
+            background: #667eea;
+            border-color: #667eea;
+        }
+        
+        .todo-checkbox.checked::after {
+            content: '✓';
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .todo-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .todo-text {
+            font-size: 16px;
+            line-height: 1.5;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-family: inherit;
+            color: inherit;
+            padding: 5px 0;
+            width: 100%;
+        }
+        
+        .todo-text:focus {
+            background: rgba(102, 126, 234, 0.05);
+            border-radius: 4px;
+            padding: 5px 8px;
+        }
+        
+        .todo-meta {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            font-size: 12px;
+            color: #718096;
+        }
+        
+        .todo-actions {
+            display: flex;
+            gap: 5px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .todo-item:hover .todo-actions {
+            opacity: 1;
+        }
+        
+        .action-btn {
+            background: #e53e3e;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        
+        .action-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .action-btn.indent {
+            background: #667eea;
+        }
+        
+        .action-btn.outdent {
+            background: #9f7aea;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 25px;
+            color: #a0aec0;
+        }
+        
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #4a5568;
+        }
+        
+        .floating-help {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: rgba(102, 126, 234, 0.9);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+        
+        .floating-help.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* アニメーション */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .todo-item {
+            animation: fadeInUp 0.3s ease forwards;
+        }
+        
+        /* レスポンシブ */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                border-radius: 12px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .todo-input-container {
+                padding: 15px 20px;
+            }
+            
+            .input-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .todo-item {
+                padding: 15px 20px;
+            }
+            
+            .todo-item.level-1 {
+                margin-left: 20px;
+            }
+            
+            .todo-item.level-2 {
+                margin-left: 40px;
+            }
+            
+            .floating-help {
+                bottom: 20px;
+                right: 20px;
+                font-size: 12px;
+                padding: 10px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <div>
+                    <h1>📝 TODO</h1>
+                    <p>{{ current_date }} のタスク</p>
+                </div>
+                
+                <div class="date-selector">
+                    <input type="date" 
+                           class="date-input" 
+                           id="dateSelector" 
+                           value="{{ current_date }}"
+                           onchange="changeDate(this.value)">
+                </div>
+                
+                <div class="nav-links">
+                    <a href="/completed" class="nav-link">📊 完了済み</a>
+                    <a href="/calendar" class="nav-link">📅 カレンダー</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="todo-container">
+            <div class="todo-input-container">
+                <div class="input-group">
+                    <input type="text" 
+                           class="todo-input" 
+                           id="todoInput" 
+                           placeholder="新しいタスクを入力してください..."
+                           autocomplete="off">
+                    
+                    <select class="level-selector" id="levelSelector">
+                        <option value="0">メインタスク</option>
+                        <option value="1">サブタスク</option>
+                        <option value="2">詳細タスク</option>
+                    </select>
+                    
+                    <button class="add-btn" onclick="addTodo()">追加</button>
+                </div>
+            </div>
+            
+            <div class="todos-list" id="todosList">
+                {% if todos %}
+                    {% for todo in todos %}
+                    <div class="todo-item level-{{ todo.level }} {% if todo.completed %}completed{% endif %}" data-id="{{ todo.id }}">
+                        <div class="todo-checkbox {% if todo.completed %}checked{% endif %}" 
+                             onclick="toggleTodo({{ todo.id }})"></div>
+                        
+                        <div class="todo-content">
+                            <input type="text" 
+                                   class="todo-text" 
+                                   value="{{ todo.content }}"
+                                   onblur="updateTodo({{ todo.id }}, this.value)"
+                                   onkeypress="handleTodoKeyPress(event, {{ todo.id }})">
+                            
+                            {% if todo.level > 0 %}
+                            <div class="todo-meta">
+                                <span>レベル {{ todo.level + 1 }}</span>
+                                {% if todo.parent_id %}
+                                <span>→ 親タスク ID: {{ todo.parent_id }}</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="todo-actions">
+                            {% if todo.level > 0 %}
+                            <button class="action-btn outdent" onclick="changeLevel({{ todo.id }}, {{ todo.level - 1 }})" title="アウトデント">←</button>
+                            {% endif %}
+                            {% if todo.level < 2 %}
+                            <button class="action-btn indent" onclick="changeLevel({{ todo.id }}, {{ todo.level + 1 }})" title="インデント">→</button>
+                            {% endif %}
+                            <button class="action-btn" onclick="deleteTodo({{ todo.id }})" title="削除">×</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📝</div>
+                        <h3>{{ current_date }} のタスクはありません</h3>
+                        <p>上の入力欄から新しいタスクを追加してください</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="floating-help" id="floatingHelp">
+        Enter: 追加 | クリック: 完了 | 矢印: 階層変更 | 日付選択: 他の日を表示
+    </div>
+
+    <script>
+        const todoInput = document.getElementById('todoInput');
+        const levelSelector = document.getElementById('levelSelector');
+        const floatingHelp = document.getElementById('floatingHelp');
+        
+        // ヘルプの表示
+        setTimeout(() => {
+            floatingHelp.classList.add('show');
+            setTimeout(() => {
+                floatingHelp.classList.remove('show');
+            }, 4000);
+        }, 1000);
+        
+        // Enterキーでタスク追加
+        todoInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addTodo();
+            }
+        });
+        
+        // フォーカス時にヘルプを表示
+        todoInput.addEventListener('focus', function() {
+            floatingHelp.classList.add('show');
+        });
+        
+        todoInput.addEventListener('blur', function() {
+            setTimeout(() => {
+                floatingHelp.classList.remove('show');
+            }, 2000);
+        });
+        
+        function addTodo() {
+            const content = todoInput.value.trim();
+            const level = parseInt(levelSelector.value);
+            const currentDate = document.getElementById('dateSelector').value;
+            
+            if (content) {
+                fetch('/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        content: content,
+                        level: level,
+                        due_date: currentDate
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        console.error('Error adding todo:', data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+                
+                todoInput.value = '';
+            }
+        }
+        
+        function toggleTodo(todoId) {
+            fetch(`/toggle/${todoId}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    console.error('Error toggling todo:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+        
+        function deleteTodo(todoId) {
+            if (confirm('このタスクを削除しますか？（子タスクも削除されます）')) {
+                fetch(`/delete/${todoId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        console.error('Error deleting todo:', data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            }
+        }
+        
+        function updateTodo(todoId, content) {
+            const trimmedContent = content.trim();
+            if (trimmedContent) {
+                fetch(`/update/${todoId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ content: trimmedContent })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        console.error('Error updating todo:', data.error);
+                        location.reload();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    location.reload();
+                });
+            }
+        }
+        
+        function changeLevel(todoId, newLevel) {
+            // 簡易実装 - 実際には階層関係を適切に管理する必要あり
+            fetch(`/update/${todoId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ level: newLevel })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    console.error('Error changing level:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+        
+        function changeDate(newDate) {
+            window.location.href = `/?date=${newDate}`;
+        }
+        
+        function handleTodoKeyPress(event, todoId) {
+            if (event.key === 'Enter') {
+                event.target.blur();
+                todoInput.focus();
+            }
+        }
+        
+        // ページ読み込み時に入力欄にフォーカス
+        window.addEventListener('load', function() {
+            todoInput.focus();
+        });
+    </script>
+</body>
+</html>
