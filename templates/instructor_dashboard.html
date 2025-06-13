@@ -307,7 +307,7 @@
     <script>
         async function loadStats() {
             try {
-                const response = await fetch('/api/stats');
+                const response = await fetch('/api/admin/stats');
                 const stats = await response.json();
                 
                 document.getElementById('totalUsers').textContent = stats.total_users;
@@ -320,7 +320,7 @@
 
         async function loadStudents() {
             try {
-                const response = await fetch('/api/users');
+                const response = await fetch('/api/admin/users');
                 const students = await response.json();
                 
                 const container = document.getElementById('studentsContainer');

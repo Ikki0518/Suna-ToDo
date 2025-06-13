@@ -42,6 +42,7 @@ class AISchoolTodoManager:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     username TEXT UNIQUE NOT NULL,
                     password_hash TEXT NOT NULL,
+                    role TEXT DEFAULT 'student',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
@@ -110,16 +111,16 @@ class AISchoolTodoManager:
         """パスワードをハッシュ化"""
         return hashlib.sha256(password.encode()).hexdigest()
     
-    def create_user(self, username, password):
+    def create_user(self, username, password, role='student'):
         """新しいユーザーを作成"""
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 password_hash = self.hash_password(password)
                 cursor.execute('''
-                    INSERT INTO users (username, password_hash)
-                    VALUES (?, ?)
-                ''', (username, password_hash))
+                    INSERT INTO users (username, password_hash, role)
+                    VALUES (?, ?, ?)
+                ''', (username, password_hash, role))
                 conn.commit()
                 return cursor.lastrowid
         except sqlite3.IntegrityError:
@@ -133,7 +134,7 @@ class AISchoolTodoManager:
             logger.info(f"認証試行: ユーザー名={username}, ハッシュ={password_hash[:10]}...")
             
             cursor.execute('''
-                SELECT id, username FROM users
+                SELECT id, username, role FROM users
                 WHERE username = ? AND password_hash = ?
             ''', (username, password_hash))
             result = cursor.fetchone()
@@ -159,7 +160,12 @@ class AISchoolTodoManager:
             # デフォルトユーザーを作成
             cursor.execute('SELECT COUNT(*) FROM users')
             if cursor.fetchone()[0] == 0:
-                default_user_id = self.create_user('demo', 'demo123')
+                # 一般ユーザー（学生）を作成
+                default_user_id = self.create_user('demo', 'demo123', 'student')
+                
+                # 管理者アカウントを作成
+                admin_user_id = self.create_user('admin', 'admin123', 'admin')
+                
                 if default_user_id:
                     # 今日の日付
                     today = date.today().isoformat()
@@ -350,11 +356,123 @@ def login_required(f):
     """ログインが必要なルートのデコレータ"""
     from functools import wraps
     @wraps(f)
-    def decorated_function(*args, **kwargs):
+# 管理者ダッシュボード用のメソッド
+    def get_all_users(self):
+        """全ての受講者を取得"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, username, role, created_at FROM users
+                ORDER BY created_at DESC
+            ''')
+            return [dict(row) for row in cursor.fetchall()]
+    
+    def get_user_progress(self, user_id, date_str):
+        """指定日付のユーザー進捗を取得"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # 日次タスクの進捗
+            cursor.execute('''
+                SELECT COUNT(*) as total, 
+                       SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as completed
+                FROM daily_tasks
+                WHERE user_id = ? AND date = ?
+            ''', (user_id, date_str))
+            daily_result = cursor.fetchone()
+            
+            # 定常タスクの進捗
+            cursor.execute('''
+                SELECT COUNT(DISTINCT rt.id) as total,
+                       COUNT(DISTINCT rc.routine_id) as completed
+                FROM routine_tasks rt
+                LEFT JOIN routine_completions rc ON rt.id = rc.routine_id AND rc.date = ?
+                WHERE rt.user_id = ?
+            ''', (date_str, user_id))
+            routine_result = cursor.fetchone()
+            
+            return {
+                'daily': {
+                    'total': daily_result['total'] or 0,
+                    'completed': daily_result['completed'] or 0
+                },
+                'routine': {
+                    'total': routine_result['total'] or 0,
+                    'completed': routine_result['completed'] or 0
+                }
+            }
+    
+    def get_overall_stats(self):
+        """全体統計を取得"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # 総受講者数
+            cursor.execute('SELECT COUNT(*) FROM users WHERE role = "student"')
+            total_users = cursor.fetchone()[0]
+            
+            # 今日のアクティブユーザー数
+            today = date.today().isoformat()
+            cursor.execute('''
+                SELECT COUNT(DISTINCT user_id)
+                FROM daily_tasks
+                WHERE date = ?
+            ''', (today,))
+            active_today = cursor.fetchone()[0]
+            
+            # 平均完了率を計算
+            cursor.execute('SELECT id FROM users WHERE role = "student"')
+            users = cursor.fetchall()
+            
+            total_completion_rates = []
+            for user_row in users:
+                user_id = user_row[0]
+                progress = self.get_user_progress(user_id, today)
+                
+                daily_total = progress['daily']['total']
+                daily_completed = progress['daily']['completed']
+                routine_total = progress['routine']['total']
+                routine_completed = progress['routine']['completed']
+                
+                total_tasks = daily_total + routine_total
+                total_completed = daily_completed + routine_completed
+                
+                if total_tasks > 0:
+                    completion_rate = (total_completed / total_tasks) * 100
+                    total_completion_rates.append(completion_rate)
+            
+            avg_completion = sum(total_completion_rates) / len(total_completion_rates) if total_completion_rates else 0
+            
+            return {
+                'total_users': total_users,
+                'active_today': active_today,
+                'avg_completion_rate': round(avg_completion, 1)
+            }
+
+# グローバルインスタンス
+todo_manager = AISchoolTodoManager()
+
+def login_required(f):
+    """ログインが必要なルートのデコレータ"""
+    from functools import wraps
+    @wraps(f)
+    def login_decorated_function(*args, **kwargs):
         if 'user_id' not in session:
             return redirect(url_for('login'))
         return f(*args, **kwargs)
-    return decorated_function
+    return login_decorated_function
+
+def admin_required(f):
+    """管理者権限が必要なルートのデコレータ"""
+    from functools import wraps
+    @wraps(f)
+    def admin_decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        if session.get('user_role') != 'admin':
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return admin_decorated_function
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -366,6 +484,7 @@ def login():
         if user:
             session['user_id'] = user['id']
             session['username'] = user['username']
+            session['user_role'] = user['role']
             return redirect(url_for('index'))
         else:
             return render_template('login.html', error='ユーザー名またはパスワードが間違っています')
@@ -518,6 +637,69 @@ def update_routine_task(task_id):
         return jsonify({'success': True})
     except Exception as e:
         logger.error(f"Error updating routine task: {e}")
+# 管理者ダッシュボードのルート
+@app.route('/admin')
+@admin_required
+def admin_dashboard():
+    """管理者ダッシュボード"""
+    return render_template('instructor_dashboard.html')
+
+@app.route('/api/admin/stats')
+@admin_required
+def get_admin_stats():
+    """管理者用統計データAPI"""
+    try:
+        stats = todo_manager.get_overall_stats()
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/users')
+@admin_required
+def get_admin_users():
+    """管理者用受講者一覧API"""
+    try:
+        users = todo_manager.get_all_users()
+        today = date.today().isoformat()
+        
+        # 各ユーザーの今日の進捗を追加
+        for user in users:
+            if user['role'] == 'student':
+                progress = todo_manager.get_user_progress(user['id'], today)
+                daily_total = progress['daily']['total']
+                daily_completed = progress['daily']['completed']
+                routine_total = progress['routine']['total']
+                routine_completed = progress['routine']['completed']
+                
+                total_tasks = daily_total + routine_total
+                total_completed = daily_completed + routine_completed
+                
+                user['today_progress'] = {
+                    'total_tasks': total_tasks,
+                    'completed_tasks': total_completed,
+                    'completion_rate': round((total_completed / total_tasks * 100) if total_tasks > 0 else 0, 1)
+                }
+            else:
+                user['today_progress'] = {
+                    'total_tasks': 0,
+                    'completed_tasks': 0,
+                    'completion_rate': 0
+                }
+        
+        return jsonify(users)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/users/<int:user_id>/progress')
+@admin_required
+def get_admin_user_progress(user_id):
+    """管理者用特定受講者の進捗API"""
+    try:
+        date_str = request.args.get('date', date.today().isoformat())
+        progress = todo_manager.get_user_progress(user_id, date_str)
+        return jsonify(progress)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/routine/<task_id>', methods=['DELETE'])

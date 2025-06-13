@@ -178,10 +178,19 @@
     <div class="container mx-auto p-4 flex-grow max-w-2xl">
         <!-- ヘッダー部分 -->
         <header class="text-center mb-8 relative">
-            <!-- ログアウトボタン -->
-            <a href="/logout" class="absolute top-0 right-0 bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-lg text-sm transition-colors">
-                ログアウト
-            </a>
+            <!-- ナビゲーションボタン -->
+            <div class="absolute top-0 right-0 flex space-x-2">
+                {% if session.user_role == 'admin' %}
+                <!-- 管理者ダッシュボードボタン -->
+                <a href="/admin" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm transition-colors">
+                    管理者ダッシュボード
+                </a>
+                {% endif %}
+                <!-- ログアウトボタン -->
+                <a href="/logout" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-lg text-sm transition-colors">
+                    ログアウト
+                </a>
+            </div>
             <div class="flex items-center justify-center mb-4">
                 <!-- Sunaロゴ -->
                 <div class="flex items-center relative mr-4">
