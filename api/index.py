@@ -24,6 +24,9 @@ if os.environ.get('FLASK_ENV') == 'production':
 else:
     app.config['DEBUG'] = True
 
+# グローバルデータベース接続
+_global_db_conn = None
+
 class AISchoolTodoManager:
     def __init__(self):
         # Vercel serverless環境ではメモリ内データベースを使用
@@ -31,11 +34,12 @@ class AISchoolTodoManager:
         self.init_database()
         
     def get_connection(self):
-        # メモリ内データベースのため、グローバル接続を保持
-        if not hasattr(self, '_conn'):
-            self._conn = sqlite3.connect(self.db_name, check_same_thread=False)
-            self._conn.row_factory = sqlite3.Row
-        return self._conn
+        global _global_db_conn
+        # グローバル接続を使用してVercelでの状態保持
+        if _global_db_conn is None:
+            _global_db_conn = sqlite3.connect(self.db_name, check_same_thread=False)
+            _global_db_conn.row_factory = sqlite3.Row
+        return _global_db_conn
     
     def init_database(self):
         with self.get_connection() as conn:
@@ -657,7 +661,13 @@ def get_admin_stats():
         stats = todo_manager.get_overall_stats()
         return jsonify(stats)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Admin stats error: {e}")
+        # エラー時はデフォルト値を返す
+        return jsonify({
+            'total_users': 0,
+            'active_today': 0,
+            'avg_completion_rate': 0
+        })
 
 @app.route('/api/admin/users')
 @admin_required
@@ -670,20 +680,28 @@ def get_admin_users():
         # 各ユーザーの今日の進捗を追加
         for user in users:
             if user['role'] == 'student':
-                progress = todo_manager.get_user_progress(user['id'], today)
-                daily_total = progress['daily']['total']
-                daily_completed = progress['daily']['completed']
-                routine_total = progress['routine']['total']
-                routine_completed = progress['routine']['completed']
-                
-                total_tasks = daily_total + routine_total
-                total_completed = daily_completed + routine_completed
-                
-                user['today_progress'] = {
-                    'total_tasks': total_tasks,
-                    'completed_tasks': total_completed,
-                    'completion_rate': round((total_completed / total_tasks * 100) if total_tasks > 0 else 0, 1)
-                }
+                try:
+                    progress = todo_manager.get_user_progress(user['id'], today)
+                    daily_total = progress['daily']['total']
+                    daily_completed = progress['daily']['completed']
+                    routine_total = progress['routine']['total']
+                    routine_completed = progress['routine']['completed']
+                    
+                    total_tasks = daily_total + routine_total
+                    total_completed = daily_completed + routine_completed
+                    
+                    user['today_progress'] = {
+                        'total_tasks': total_tasks,
+                        'completed_tasks': total_completed,
+                        'completion_rate': round((total_completed / total_tasks * 100) if total_tasks > 0 else 0, 1)
+                    }
+                except Exception as e:
+                    logger.error(f"Error getting user progress for user {user['id']}: {e}")
+                    user['today_progress'] = {
+                        'total_tasks': 0,
+                        'completed_tasks': 0,
+                        'completion_rate': 0
+                    }
             else:
                 user['today_progress'] = {
                     'total_tasks': 0,
@@ -693,7 +711,9 @@ def get_admin_users():
         
         return jsonify(users)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Admin users error: {e}")
+        # エラー時は空のリストを返す
+        return jsonify([])
 
 @app.route('/api/admin/users/<int:user_id>/progress')
 @admin_required
