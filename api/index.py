@@ -6,14 +6,19 @@ import logging
 import hashlib
 import secrets
 import os
+from functools import wraps
 
 # ログ設定
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Vercel環境でのパス設定
+template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates')
+static_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static')
+
 app = Flask(__name__,
-           template_folder='../templates',
-           static_folder='../static')
+           template_folder=template_path,
+           static_folder=static_path if os.path.exists(static_path) else None)
 # 本番環境ではSECRET_KEYを環境変数から取得
 # Vercel環境では固定キーを使用してセッション一貫性を確保
 if os.environ.get('VERCEL'):
@@ -54,8 +59,11 @@ class AISchoolTodoManager:
         
         # 環境変数からデータベースパスを取得、デフォルトは/tmp/suna_todo.db
         if os.environ.get('VERCEL'):
-            # Vercel環境では/tmpディレクトリを使用し、データベース永続化を改善
-            self.db_name = '/tmp/suna_todo_persistent.db'
+            # Vercel環境では/tmpディレクトリを使用
+            self.db_name = '/tmp/suna_todo.db'
+            # データベースファイルの永続化のために既存チェック
+            if not os.path.exists(self.db_name):
+                logger.info("Database file not found in /tmp, creating new one")
         else:
             # ローカル環境では相対パス
             self.db_name = 'suna_todo.db'
