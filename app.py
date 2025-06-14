@@ -840,6 +840,9 @@ def delete_routine_task(task_id):
         logger.error(f"Error deleting routine task: {e}")
         return jsonify({'error': str(e)}), 500
 
+# Vercel用のハンドラー（これが重要）
+# Vercelはappオブジェクトを自動的に検出して使用します
+
 # メイン実行部分
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5004)

@@ -13,8 +13,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Vercel環境でのパス設定
-template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates')
-static_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static')
+current_dir = os.path.dirname(__file__)
+template_path = os.path.join(current_dir, '..', 'templates')
+static_path = os.path.join(current_dir, '..', 'static')
 
 app = Flask(__name__,
            template_folder=template_path,
@@ -589,9 +590,16 @@ def logout():
     return redirect(url_for('login'))
 
 @app.route('/')
-@login_required
 def index():
-    return render_template('ai_school_todo.html')
+    # ログインチェック
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    return render_template('ai_school_todo.html', username=session.get('username'))
+
+# デバッグ用のテストルート
+@app.route('/test')
+def test():
+    return 'API New TODO App is working! 🎉'
 
 @app.route('/api/data')
 @login_required
