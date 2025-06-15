@@ -1,16 +1,17 @@
-from flask import Flask, jsonify, request, session, redirect, url_for
+from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 import sqlite3
 import hashlib
 import secrets
 import os
 import logging
 from functools import wraps
+from datetime import datetime, date
 
 # ログ設定
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates', static_folder='static')
 
 # セッション設定
 if os.environ.get('VERCEL'):
@@ -44,14 +45,42 @@ def init_database():
             )
         ''')
         
-        # タスクテーブル
+        # 日次タスクテーブル
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS tasks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+            CREATE TABLE IF NOT EXISTS daily_tasks (
+                id TEXT PRIMARY KEY,
                 user_id INTEGER NOT NULL,
                 text TEXT NOT NULL,
                 completed BOOLEAN DEFAULT 0,
+                date TEXT NOT NULL,
+                indent INTEGER DEFAULT 0,
+                position INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        
+        # 定常タスクテーブル
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS routine_tasks (
+                id TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                text TEXT NOT NULL,
+                position INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        
+        # 定常タスク完了記録テーブル
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS routine_completions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                routine_id TEXT NOT NULL,
+                date TEXT NOT NULL,
+                completed BOOLEAN DEFAULT 0,
+                UNIQUE(user_id, routine_id, date),
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
@@ -110,55 +139,29 @@ def index():
         init_database()
         
         if 'user_id' not in session:
-            return '''
-            <html>
-            <body>
-                <h1>TODO App - ログイン</h1>
-                <form method="post" action="/login">
-                    <p>ユーザー名: <input type="text" name="username" value="demo" required></p>
-                    <p>パスワード: <input type="password" name="password" value="demo123" required></p>
-                    <p><input type="submit" value="ログイン"></p>
-                </form>
-                <p>デモアカウント: demo / demo123</p>
-            </body>
-            </html>
-            '''
+            return redirect(url_for('login'))
         else:
-            return f'''
-            <html>
-            <body>
-                <h1>TODO App - ようこそ {session.get("username")} さん</h1>
-                <p><a href="/logout">ログアウト</a></p>
-                <p><a href="/api/test">API テスト</a></p>
-                <p>TODOアプリが正常に動作しています！</p>
-            </body>
-            </html>
-            '''
+            return render_template('ai_school_todo.html', username=session.get('username'))
     except Exception as e:
         logger.error(f"Index route error: {e}")
         return f'Error: {str(e)}', 500
 
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
     try:
-        username = request.form['username']
-        password = request.form['password']
+        if request.method == 'POST':
+            username = request.form['username']
+            password = request.form['password']
+            
+            user = authenticate_user(username, password)
+            if user:
+                session['user_id'] = user['id']
+                session['username'] = user['username']
+                return redirect(url_for('index'))
+            else:
+                return render_template('login.html', error='ユーザー名またはパスワードが間違っています')
         
-        user = authenticate_user(username, password)
-        if user:
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            return redirect(url_for('index'))
-        else:
-            return '''
-            <html>
-            <body>
-                <h1>ログイン失敗</h1>
-                <p>ユーザー名またはパスワードが間違っています</p>
-                <p><a href="/">戻る</a></p>
-            </body>
-            </html>
-            '''
+        return render_template('login.html')
     except Exception as e:
         logger.error(f"Login error: {e}")
         return f'Login error: {str(e)}', 500
@@ -181,6 +184,183 @@ def api_test():
 @app.route('/test')
 def test():
     return 'Simple TODO App is working! 🎉'
+
+# APIエンドポイント
+@app.route('/api/data')
+@login_required
+def get_data():
+    try:
+        date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+        user_id = session['user_id']
+        
+        conn = sqlite3.connect(get_db_path())
+        cursor = conn.cursor()
+        
+        # 日次タスクを取得
+        cursor.execute('''
+            SELECT * FROM daily_tasks
+            WHERE user_id = ? AND date = ?
+            ORDER BY position, created_at
+        ''', (user_id, date_str))
+        daily_tasks = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
+        
+        # 定常タスクを取得
+        cursor.execute('''
+            SELECT * FROM routine_tasks
+            WHERE user_id = ?
+            ORDER BY position, created_at
+        ''', (user_id,))
+        routine_tasks = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
+        
+        # 定常タスクの完了状況を取得
+        for task in routine_tasks:
+            cursor.execute('''
+                SELECT completed FROM routine_completions
+                WHERE user_id = ? AND routine_id = ? AND date = ?
+            ''', (user_id, task['id'], date_str))
+            result = cursor.fetchone()
+            task['completed'] = result[0] if result else False
+        
+        conn.close()
+        
+        return jsonify({
+            'daily_tasks': daily_tasks,
+            'routine_tasks': routine_tasks
+        })
+    except Exception as e:
+        logger.error(f"Error in get_data: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/daily_task', methods=['POST'])
+@login_required
+def add_daily_task():
+    try:
+        data = request.get_json()
+        user_id = session['user_id']
+        
+        conn = sqlite3.connect(get_db_path())
+        cursor = conn.cursor()
+        
+        # 最大ポジションを取得
+        cursor.execute('SELECT MAX(position) FROM daily_tasks WHERE user_id = ? AND date = ?',
+                      (user_id, data['date']))
+        max_pos = cursor.fetchone()[0] or 0
+        
+        cursor.execute('''
+            INSERT INTO daily_tasks (id, user_id, text, date, position, indent)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (data['id'], user_id, data['text'], data['date'], max_pos + 1, data.get('indent', 0)))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error adding daily task: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/daily_task/<task_id>', methods=['PUT'])
+@login_required
+def update_daily_task(task_id):
+    try:
+        data = request.get_json()
+        
+        conn = sqlite3.connect(get_db_path())
+        cursor = conn.cursor()
+        
+        update_fields = []
+        values = []
+        
+        if 'text' in data:
+            update_fields.append('text = ?')
+            values.append(data['text'])
+        if 'completed' in data:
+            update_fields.append('completed = ?')
+            values.append(data['completed'])
+        if 'indent' in data:
+            update_fields.append('indent = ?')
+            values.append(data['indent'])
+            
+        if update_fields:
+            values.append(task_id)
+            cursor.execute(f'''
+                UPDATE daily_tasks
+                SET {', '.join(update_fields)}
+                WHERE id = ?
+            ''', values)
+            
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error updating daily task: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/daily_task/<task_id>', methods=['DELETE'])
+@login_required
+def delete_daily_task(task_id):
+    try:
+        conn = sqlite3.connect(get_db_path())
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM daily_tasks WHERE id = ?', (task_id,))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error deleting daily task: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/routine_completion', methods=['POST'])
+@login_required
+def update_routine_completion():
+    try:
+        data = request.get_json()
+        user_id = session['user_id']
+        
+        conn = sqlite3.connect(get_db_path())
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT OR REPLACE INTO routine_completions (user_id, routine_id, date, completed)
+            VALUES (?, ?, ?, ?)
+        ''', (user_id, data['routine_id'], data['date'], data['completed']))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error updating routine completion: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/routine_task', methods=['POST'])
+@login_required
+def add_routine_task():
+    try:
+        data = request.get_json()
+        user_id = session['user_id']
+        
+        conn = sqlite3.connect(get_db_path())
+        cursor = conn.cursor()
+        
+        # 最大ポジションを取得
+        cursor.execute('SELECT MAX(position) FROM routine_tasks WHERE user_id = ?', (user_id,))
+        max_pos = cursor.fetchone()[0] or 0
+        
+        cursor.execute('''
+            INSERT INTO routine_tasks (id, user_id, text, position)
+            VALUES (?, ?, ?, ?)
+        ''', (data['id'], user_id, data['text'], max_pos + 1))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error adding routine task: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/health')
 def health():
