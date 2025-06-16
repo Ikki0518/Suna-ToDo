@@ -22,7 +22,19 @@ else:
 # データベース設定
 def get_db_path():
     if os.environ.get('VERCEL'):
-        return '/tmp/suna_todo.db'
+        # Vercel環境では複数の場所を試してデータベースの永続化を改善
+        possible_paths = [
+            '/tmp/persistent_suna_todo.db',
+            '/tmp/suna_todo.db'
+        ]
+        # 既存のデータベースがあるかチェック
+        for path in possible_paths:
+            if os.path.exists(path):
+                logger.info(f"Using existing database: {path}")
+                return path
+        # なければ最初のパスを使用
+        logger.info(f"Creating new database: {possible_paths[0]}")
+        return possible_paths[0]
     else:
         return 'suna_todo.db'
 
@@ -92,9 +104,46 @@ def init_database():
             VALUES (?, ?)
         ''', ('demo', password_hash))
         
+        # サンプルタスクを作成（デモ用）
+        today = datetime.now().strftime('%Y-%m-%d')
+        
+        # デモユーザーのIDを取得
+        cursor.execute('SELECT id FROM users WHERE username = ?', ('demo',))
+        demo_user = cursor.fetchone()
+        if demo_user:
+            demo_user_id = demo_user[0]
+            
+            # サンプル日次タスクを追加
+            sample_daily_tasks = [
+                'プログラミング学習を始める',
+                'TODOアプリの使い方を覚える',
+                'タスクを完了してみる'
+            ]
+            
+            for i, task_text in enumerate(sample_daily_tasks):
+                task_id = f'demo_daily_{i}_{today}'
+                cursor.execute('''
+                    INSERT OR IGNORE INTO daily_tasks (id, user_id, text, date, position, indent)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (task_id, demo_user_id, task_text, today, i, 0))
+            
+            # サンプル定常タスクを追加
+            sample_routine_tasks = [
+                '朝の学習タイム (30分)',
+                '進捗の確認',
+                '今日の振り返り'
+            ]
+            
+            for i, task_text in enumerate(sample_routine_tasks):
+                task_id = f'demo_routine_{i}'
+                cursor.execute('''
+                    INSERT OR IGNORE INTO routine_tasks (id, user_id, text, position)
+                    VALUES (?, ?, ?, ?)
+                ''', (task_id, demo_user_id, task_text, i))
+        
         conn.commit()
         conn.close()
-        logger.info("Database initialized successfully")
+        logger.info("Database initialized successfully with sample data")
         
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
