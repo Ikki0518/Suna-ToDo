@@ -186,6 +186,50 @@ def test():
     return 'Simple TODO App is working! 🎉'
 
 # APIエンドポイント
+@app.route('/api/tasks/<date_str>')
+@login_required
+def get_tasks_by_date(date_str):
+    try:
+        user_id = session['user_id']
+        
+        conn = sqlite3.connect(get_db_path())
+        cursor = conn.cursor()
+        
+        # 日次タスクを取得
+        cursor.execute('''
+            SELECT * FROM daily_tasks
+            WHERE user_id = ? AND date = ?
+            ORDER BY position, created_at
+        ''', (user_id, date_str))
+        daily_tasks = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
+        
+        # 定常タスクを取得
+        cursor.execute('''
+            SELECT * FROM routine_tasks
+            WHERE user_id = ?
+            ORDER BY position, created_at
+        ''', (user_id,))
+        routine_tasks = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
+        
+        # 定常タスクの完了状況を取得
+        for task in routine_tasks:
+            cursor.execute('''
+                SELECT completed FROM routine_completions
+                WHERE user_id = ? AND routine_id = ? AND date = ?
+            ''', (user_id, task['id'], date_str))
+            result = cursor.fetchone()
+            task['completed'] = result[0] if result else False
+        
+        conn.close()
+        
+        return jsonify({
+            'daily_tasks': daily_tasks,
+            'routine_tasks': routine_tasks
+        })
+    except Exception as e:
+        logger.error(f"Error in get_tasks_by_date: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/data')
 @login_required
 def get_data():
