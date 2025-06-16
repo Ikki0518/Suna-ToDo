@@ -461,16 +461,22 @@
             console.log('handleTaskKeydown called with key:', e.key);
             
             if (e.key === 'Enter') {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // テキストを保存してから新しいタスクを追加
-                await saveTaskText(taskId, textElement.textContent);
-                
-                const currentIndex = dailyTasks.findIndex(t => t.id === taskId);
-                const task = dailyTasks[currentIndex];
-                if (task && currentIndex !== -1) {
-                    await addNewTaskAtPosition('', false, task.indent || 0, currentIndex + 1);
+                if (e.shiftKey) {
+                    // Shift+Enter: 改行を許可
+                    return; // デフォルトの改行動作を許可
+                } else {
+                    // Enter: 新しいタスクを追加
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // テキストを保存してから新しいタスクを追加
+                    await saveTaskText(taskId, textElement.textContent);
+                    
+                    const currentIndex = dailyTasks.findIndex(t => t.id === taskId);
+                    const task = dailyTasks[currentIndex];
+                    if (task && currentIndex !== -1) {
+                        await addNewTask('', false, task.indent || 0);
+                    }
                 }
             } else if (e.key === 'Tab') {
                 e.preventDefault();
@@ -680,16 +686,22 @@
             console.log('handleRoutineTaskKeydown called with key:', e.key);
             
             if (e.key === 'Enter') {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // テキストを保存してから新しいタスクを追加
-                await saveRoutineTaskText(taskId, textElement.textContent);
-                
-                const currentIndex = routineTasks.findIndex(t => t.id === taskId);
-                const task = routineTasks[currentIndex];
-                if (task && currentIndex !== -1) {
-                    await addNewRoutineTaskAtPosition('', task.indent || 0, currentIndex + 1);
+                if (e.shiftKey) {
+                    // Shift+Enter: 改行を許可
+                    return; // デフォルトの改行動作を許可
+                } else {
+                    // Enter: 新しいタスクを追加
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // テキストを保存してから新しいタスクを追加
+                    await saveRoutineTaskText(taskId, textElement.textContent);
+                    
+                    const currentIndex = routineTasks.findIndex(t => t.id === taskId);
+                    const task = routineTasks[currentIndex];
+                    if (task && currentIndex !== -1) {
+                        await addNewRoutineTask('', task.indent || 0);
+                    }
                 }
             } else if (e.key === 'Tab') {
                 e.preventDefault();
