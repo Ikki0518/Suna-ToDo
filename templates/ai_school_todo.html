@@ -1005,9 +1005,12 @@
                 const tomorrow = new Date(currentDate);
                 tomorrow.setDate(tomorrow.getDate() + 1);
                 const today = new Date();
-                today.setHours(0, 0, 0, 0);
                 
-                if (tomorrow <= today) {
+                // 日付のみで比較して、今日まで（今日を含む）進めるようにする
+                const tomorrowDateStr = tomorrow.toISOString().slice(0, 10);
+                const todayDateStr = today.toISOString().slice(0, 10);
+                
+                if (tomorrowDateStr <= todayDateStr) {
                     currentDate.setDate(currentDate.getDate() + 1);
                     loadTasks();
                 }
