@@ -231,7 +231,7 @@ def get_data():
         logger.error(f"Error in get_data: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/daily_task', methods=['POST'])
+@app.route('/api/tasks', methods=['POST'])
 @login_required
 def add_daily_task():
     try:
@@ -259,7 +259,7 @@ def add_daily_task():
         logger.error(f"Error adding daily task: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/daily_task/<task_id>', methods=['PUT'])
+@app.route('/api/tasks/<task_id>', methods=['PUT'])
 @login_required
 def update_daily_task(task_id):
     try:
@@ -297,7 +297,7 @@ def update_daily_task(task_id):
         logger.error(f"Error updating daily task: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/daily_task/<task_id>', methods=['DELETE'])
+@app.route('/api/tasks/<task_id>', methods=['DELETE'])
 @login_required
 def delete_daily_task(task_id):
     try:
@@ -312,30 +312,43 @@ def delete_daily_task(task_id):
         logger.error(f"Error deleting daily task: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/routine_completion', methods=['POST'])
+@app.route('/api/routine/toggle', methods=['POST'])
 @login_required
 def update_routine_completion():
     try:
         data = request.get_json()
         user_id = session['user_id']
+        routine_id = data['routine_id']
+        date_str = data['date']
         
         conn = sqlite3.connect(get_db_path())
         cursor = conn.cursor()
         
+        # 現在の状態を取得
+        cursor.execute('''
+            SELECT completed FROM routine_completions
+            WHERE user_id = ? AND routine_id = ? AND date = ?
+        ''', (user_id, routine_id, date_str))
+        result = cursor.fetchone()
+        current_completed = result[0] if result else False
+        
+        # 状態を切り替え
+        new_completed = not current_completed
+        
         cursor.execute('''
             INSERT OR REPLACE INTO routine_completions (user_id, routine_id, date, completed)
             VALUES (?, ?, ?, ?)
-        ''', (user_id, data['routine_id'], data['date'], data['completed']))
+        ''', (user_id, routine_id, date_str, new_completed))
         
         conn.commit()
         conn.close()
         
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'completed': new_completed})
     except Exception as e:
         logger.error(f"Error updating routine completion: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/routine_task', methods=['POST'])
+@app.route('/api/routine', methods=['POST'])
 @login_required
 def add_routine_task():
     try:
@@ -360,6 +373,56 @@ def add_routine_task():
         return jsonify({'success': True})
     except Exception as e:
         logger.error(f"Error adding routine task: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/routine/<task_id>', methods=['PUT'])
+@login_required
+def update_routine_task(task_id):
+    try:
+        data = request.get_json()
+        
+        conn = sqlite3.connect(get_db_path())
+        cursor = conn.cursor()
+        
+        update_fields = []
+        values = []
+        
+        if 'text' in data:
+            update_fields.append('text = ?')
+            values.append(data['text'])
+        if 'indent' in data:
+            update_fields.append('indent = ?')
+            values.append(data['indent'])
+            
+        if update_fields:
+            values.append(task_id)
+            cursor.execute(f'''
+                UPDATE routine_tasks
+                SET {', '.join(update_fields)}
+                WHERE id = ?
+            ''', values)
+            
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error updating routine task: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/routine/<task_id>', methods=['DELETE'])
+@login_required
+def delete_routine_task(task_id):
+    try:
+        conn = sqlite3.connect(get_db_path())
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM routine_tasks WHERE id = ?', (task_id,))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error deleting routine task: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/health')
