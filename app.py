@@ -79,10 +79,18 @@ def init_database():
                 user_id INTEGER NOT NULL,
                 text TEXT NOT NULL,
                 position INTEGER DEFAULT 0,
+                indent INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
+        
+        # 既存のroutine_tasksテーブルにindentカラムを追加（存在しない場合）
+        try:
+            cursor.execute('ALTER TABLE routine_tasks ADD COLUMN indent INTEGER DEFAULT 0')
+        except sqlite3.OperationalError:
+            # カラムが既に存在する場合はエラーを無視
+            pass
         
         # 定常タスク完了記録テーブル
         cursor.execute('''
@@ -456,9 +464,9 @@ def add_routine_task():
         max_pos = cursor.fetchone()[0] or 0
         
         cursor.execute('''
-            INSERT INTO routine_tasks (id, user_id, text, position)
-            VALUES (?, ?, ?, ?)
-        ''', (data['id'], user_id, data['text'], max_pos + 1))
+            INSERT INTO routine_tasks (id, user_id, text, position, indent)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (data['id'], user_id, data['text'], max_pos + 1, data.get('indent', 0)))
         
         conn.commit()
         conn.close()
