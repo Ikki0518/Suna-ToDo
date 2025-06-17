@@ -12,8 +12,10 @@
         /* デフォルトフォントとしてInterを設定 */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f8f8f8; /* 背景色を薄いグレーに設定 */
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            background-attachment: fixed;
             color: #333; /* テキスト色を濃いグレーに設定 */
+            min-height: 100vh;
         }
         
         /* AIスクールロゴのスタイル */
@@ -171,51 +173,138 @@
                 opacity: 0;
             }
         }
+
+        /* ヘッダーアニメーション */
+        @keyframes floating {
+            0%, 100% { 
+                transform: translateY(0px) rotate(0deg); 
+            }
+            50% { 
+                transform: translateY(-10px) rotate(2deg); 
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        .header-animation {
+            animation: floating 6s ease-in-out infinite;
+        }
+
+        .shimmer-text {
+            background: linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0.1) 0%,
+                rgba(255, 255, 255, 0.8) 50%,
+                rgba(255, 255, 255, 0.1) 100%
+            );
+            background-size: 200% 100%;
+            background-clip: text;
+            -webkit-background-clip: text;
+            animation: shimmer 3s ease-in-out infinite;
+        }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
     <!-- メインコンテナ: 中央寄せ、最大幅設定、パディング追加 -->
     <div class="container mx-auto p-4 flex-grow max-w-2xl">
         <!-- ヘッダー部分 -->
-        <header class="text-center mb-8 relative">
-            <!-- ナビゲーションボタン -->
-            <div class="absolute top-0 right-0 flex space-x-2">
-                <!-- ログアウトボタン -->
-                <a href="/logout" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-lg text-sm transition-colors">
-                    ログアウト
-                </a>
-                <!-- 管理者ダッシュボードボタン（管理者のみ表示） -->
-                {% if session.username == 'admin' or session.username == 'ikki_y0518@icloud.com' %}
-                <a href="/admin" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-sm transition-colors">
-                    📊 管理者ダッシュボード
-                </a>
-                {% endif %}
+        <header class="relative mb-12 overflow-hidden">
+            <!-- グラデーション背景 -->
+            <div class="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-3xl shadow-2xl"></div>
+            
+            <!-- 装飾的な背景要素 -->
+            <div class="absolute top-0 left-0 w-full h-full">
+                <div class="absolute top-4 right-8 w-20 h-20 bg-white/10 rounded-full blur-xl animate-pulse"></div>
+                <div class="absolute bottom-6 left-12 w-16 h-16 bg-yellow-300/20 rounded-full blur-lg animate-ping"></div>
+                <div class="absolute top-1/2 left-1/4 w-8 h-8 bg-cyan-300/30 rounded-full blur-md animate-bounce"></div>
             </div>
-            <div class="flex items-center justify-center mb-4">
-                <!-- Sunaロゴ -->
-                <div class="flex items-center relative mr-4">
-                    <svg width="115" height="55" viewBox="0 0 115 55" class="flex-shrink-0">
-                        <!-- 大きな円（右上、明るいターコイズブルー） -->
-                        <circle cx="90" cy="20" r="13" fill="#67E8F9" opacity="0.85"/>
-                        <!-- 中くらいの円（左中央、濃いブルー） -->
-                        <circle cx="73" cy="28" r="8" fill="#2563EB" opacity="0.9"/>
-                        <!-- 小さな円（右下、薄いターコイズ） -->
-                        <circle cx="83" cy="35" r="5" fill="#A7F3D0" opacity="0.75"/>
-                        <!-- テキスト "suna" -->
-                        <text x="0" y="42" font-size="26" font-weight="700" fill="#1E293B" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" letter-spacing="-1.2px">
-                            suna
-                        </text>
-                    </svg>
+            
+            <!-- メインコンテンツ -->
+            <div class="relative z-10 px-8 py-10">
+                <!-- ナビゲーションボタン -->
+                <div class="absolute top-6 right-6 flex space-x-3">
+                    <!-- ログアウトボタン -->
+                    <a href="/logout" class="group bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-300 border border-white/20 hover:border-white/40 hover:shadow-lg hover:scale-105">
+                        <span class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                            </svg>
+                            <span>ログアウト</span>
+                        </span>
+                    </a>
+                    <!-- 管理者ダッシュボードボタン（管理者のみ表示） -->
+                    {% if session.username == 'admin' or session.username == 'ikki_y0518@icloud.com' %}
+                    <a href="/admin" class="group bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-white px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105">
+                        <span class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                            </svg>
+                            <span>管理者ダッシュボード</span>
+                        </span>
+                    </a>
+                    {% endif %}
                 </div>
-                <div class="text-left">
-                    <h1 class="text-3xl font-bold text-gray-800">Suna ToDo</h1>
-                    <p class="text-lg text-gray-600">あなたの今日の学習を迷わず進めよう！</p>
+                
+                <!-- メインヘッダーコンテンツ -->
+                <div class="flex items-center justify-center pt-8">
+                    <!-- Sunaロゴ -->
+                    <div class="flex items-center relative mr-6 group header-animation">
+                        <div class="relative">
+                            <svg width="120" height="60" viewBox="0 0 115 55" class="flex-shrink-0 drop-shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                <!-- グロー効果のための背景 -->
+                                <defs>
+                                    <filter id="glow">
+                                        <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                        <feMerge> 
+                                            <feMergeNode in="coloredBlur"/>
+                                            <feMergeNode in="SourceGraphic"/>
+                                        </feMerge>
+                                    </filter>
+                                </defs>
+                                <!-- 大きな円（右上、明るいターコイズブルー） -->
+                                <circle cx="90" cy="20" r="13" fill="#67E8F9" opacity="0.95" filter="url(#glow)"/>
+                                <!-- 中くらいの円（左中央、濃いブルー） -->
+                                <circle cx="73" cy="28" r="8" fill="#2563EB" opacity="1" filter="url(#glow)"/>
+                                <!-- 小さな円（右下、薄いターコイズ） -->
+                                <circle cx="83" cy="35" r="5" fill="#A7F3D0" opacity="0.9" filter="url(#glow)"/>
+                                <!-- テキスト "suna" -->
+                                <text x="0" y="42" font-size="26" font-weight="800" fill="white" font-family="Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" letter-spacing="-1.2px" filter="url(#glow)">
+                                    suna
+                                </text>
+                            </svg>
+                        </div>
+                    </div>
+                    
+                    <!-- タイトルとサブタイトル -->
+                    <div class="text-left">
+                        <h1 class="text-4xl lg:text-5xl font-extrabold text-white mb-2 drop-shadow-lg shimmer-text">
+                            <span class="bg-gradient-to-r from-white to-gray-100 bg-clip-text text-transparent">
+                                Suna ToDo
+                            </span>
+                        </h1>
+                        <p class="text-lg lg:text-xl text-white/90 font-medium drop-shadow-md">
+                            ✨ あなたの今日の学習を迷わず進めよう！ ✨
+                        </p>
+                        <div class="mt-3 flex items-center space-x-2 text-white/80 text-sm">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                            </svg>
+                            <span>効率的な学習でスキルアップを実現</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </header>
 
         <!-- 日付ナビゲーションと表示エリア -->
-        <div class="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm mb-6">
+        <div class="flex items-center justify-between bg-white/80 backdrop-blur-sm p-4 rounded-xl shadow-lg border border-white/20 mb-6">
             <!-- 前の日へ移動ボタン -->
             <button id="prevDay" class="p-2 rounded-full hover:bg-gray-200 text-blue-600 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -260,7 +349,7 @@
         </div>
 
         <!-- 学習進捗エリア -->
-        <div class="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg mt-8">
+        <div class="bg-gradient-to-r from-blue-50/80 to-purple-50/80 backdrop-blur-sm p-6 rounded-xl shadow-lg border border-white/30 mt-8">
             <h3 class="text-lg font-semibold text-gray-800 mb-2">📊 今日の学習進捗</h3>
             <div class="flex items-center space-x-4">
                 <div class="flex-1">
