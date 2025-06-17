@@ -278,7 +278,11 @@
         // グローバルデータストア
         let dailyTasks = []; 
         let routineTasks = [];
-        let currentDate = new Date(); 
+        let currentDate = new Date();
+        
+        // 連続Enterキー追跡用
+        let lastEnterTime = {};
+        const DOUBLE_ENTER_DELAY = 1000; // 1秒以内の連続Enterで新しいタスク作成 
 
         // ユニークなIDを生成するユーティリティ関数
         function generateId() {
@@ -467,17 +471,43 @@
                     // Shift+Enter: 改行を許可
                     return; // デフォルトの改行動作を許可
                 } else {
-                    // Enter: 新しいタスクを追加
+                    // Enter: 連続入力で新しいタスクを追加
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    // テキストを保存してから新しいタスクを追加
-                    await saveTaskText(taskId, textElement.textContent);
+                    const currentTime = Date.now();
+                    const lastTime = lastEnterTime[taskId] || 0;
                     
-                    const currentIndex = dailyTasks.findIndex(t => t.id === taskId);
-                    const task = dailyTasks[currentIndex];
-                    if (task && currentIndex !== -1) {
-                        await addNewTask('', false, task.indent || 0);
+                    if (currentTime - lastTime < DOUBLE_ENTER_DELAY) {
+                        // 2回目のEnter: 新しいタスクを作成
+                        console.log('Double Enter detected: creating new task');
+                        
+                        // テキストを保存してから新しいタスクを追加
+                        await saveTaskText(taskId, textElement.textContent);
+                        
+                        const currentIndex = dailyTasks.findIndex(t => t.id === taskId);
+                        const task = dailyTasks[currentIndex];
+                        if (task && currentIndex !== -1) {
+                            await addNewTask('', false, task.indent || 0);
+                        }
+                        
+                        // リセット
+                        delete lastEnterTime[taskId];
+                    } else {
+                        // 1回目のEnter: テキスト編集を確定
+                        console.log('First Enter detected: saving text');
+                        
+                        // テキストを保存
+                        await saveTaskText(taskId, textElement.textContent);
+                        
+                        // フォーカスを維持
+                        textElement.blur();
+                        setTimeout(() => {
+                            textElement.focus();
+                        }, 10);
+                        
+                        // 時間を記録
+                        lastEnterTime[taskId] = currentTime;
                     }
                 }
             } else if (e.key === 'Tab') {
@@ -716,17 +746,43 @@
                     // Shift+Enter: 改行を許可
                     return; // デフォルトの改行動作を許可
                 } else {
-                    // Enter: 新しいタスクを追加
+                    // Enter: 連続入力で新しいタスクを追加
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    // テキストを保存してから新しいタスクを追加
-                    await saveRoutineTaskText(taskId, textElement.textContent);
+                    const currentTime = Date.now();
+                    const lastTime = lastEnterTime[taskId] || 0;
                     
-                    const currentIndex = routineTasks.findIndex(t => t.id === taskId);
-                    const task = routineTasks[currentIndex];
-                    if (task && currentIndex !== -1) {
-                        await addNewRoutineTask('', task.indent || 0);
+                    if (currentTime - lastTime < DOUBLE_ENTER_DELAY) {
+                        // 2回目のEnter: 新しいタスクを作成
+                        console.log('Double Enter detected: creating new routine task');
+                        
+                        // テキストを保存してから新しいタスクを追加
+                        await saveRoutineTaskText(taskId, textElement.textContent);
+                        
+                        const currentIndex = routineTasks.findIndex(t => t.id === taskId);
+                        const task = routineTasks[currentIndex];
+                        if (task && currentIndex !== -1) {
+                            await addNewRoutineTask('', task.indent || 0);
+                        }
+                        
+                        // リセット
+                        delete lastEnterTime[taskId];
+                    } else {
+                        // 1回目のEnter: テキスト編集を確定
+                        console.log('First Enter detected: saving routine task text');
+                        
+                        // テキストを保存
+                        await saveRoutineTaskText(taskId, textElement.textContent);
+                        
+                        // フォーカスを維持
+                        textElement.blur();
+                        setTimeout(() => {
+                            textElement.focus();
+                        }, 10);
+                        
+                        // 時間を記録
+                        lastEnterTime[taskId] = currentTime;
                     }
                 }
             } else if (e.key === 'Tab') {
