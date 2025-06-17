@@ -531,13 +531,27 @@
                         
                         console.log(`Daily task indent: ${currentIndent} → ${newIndent} (${keyType})`);
                         
-                        // インデント実行前の状態を保存
-                        const currentText = textElement.textContent;
-                        const currentSelection = window.getSelection();
-                        const currentCursorPos = currentSelection.rangeCount > 0 ? currentSelection.getRangeAt(0).endOffset : 0;
-                        
                         // インデント実行
-                        updateTaskIndentWithFocus(taskId, newIndent, currentText, currentCursorPos);
+                        await updateTaskIndent(taskId, newIndent);
+                        
+                        // フォーカスを確実に復元
+                        setTimeout(() => {
+                            const taskSpan = document.querySelector(`#task-${taskId} .task-text`);
+                            if (taskSpan) {
+                                taskSpan.focus();
+                                // カーソルを末尾に移動
+                                try {
+                                    const range = document.createRange();
+                                    range.selectNodeContents(taskSpan);
+                                    range.collapse(false);
+                                    const sel = window.getSelection();
+                                    sel.removeAllRanges();
+                                    sel.addRange(range);
+                                } catch (e) {
+                                    console.log('Focus restoration failed:', e);
+                                }
+                            }
+                        }, 50);
                     }
                 } else {
                     console.log(`${keyType} ignored - not at end of text for daily task:`, taskId);
@@ -781,13 +795,27 @@
                         
                         console.log(`Routine task indent: ${currentIndent} → ${newIndent} (${keyType})`);
                         
-                        // インデント実行前の状態を保存
-                        const currentText = textElement.textContent;
-                        const currentSelection = window.getSelection();
-                        const currentCursorPos = currentSelection.rangeCount > 0 ? currentSelection.getRangeAt(0).endOffset : 0;
-                        
                         // インデント実行
-                        updateRoutineTaskIndentWithFocus(taskId, newIndent, currentText, currentCursorPos);
+                        await updateRoutineTaskIndent(taskId, newIndent);
+                        
+                        // フォーカスを確実に復元
+                        setTimeout(() => {
+                            const taskSpan = document.querySelector(`#task-${taskId} .task-text`);
+                            if (taskSpan) {
+                                taskSpan.focus();
+                                // カーソルを末尾に移動
+                                try {
+                                    const range = document.createRange();
+                                    range.selectNodeContents(taskSpan);
+                                    range.collapse(false);
+                                    const sel = window.getSelection();
+                                    sel.removeAllRanges();
+                                    sel.addRange(range);
+                                } catch (e) {
+                                    console.log('Focus restoration failed:', e);
+                                }
+                            }
+                        }, 50);
                     }
                 } else {
                     console.log(`${keyType} ignored - not at end of text for routine task:`, taskId);
@@ -1059,14 +1087,26 @@
             }
         }
 
-        // タスクのインデントを更新（従来版：後方互換性のため）
+        // タスクのインデントを更新（シンプル版）
         async function updateTaskIndent(taskId, newIndent) {
-            const currentElement = document.activeElement;
-            const currentText = currentElement && currentElement.classList.contains('task-text') ? currentElement.textContent : '';
-            const selection = window.getSelection();
-            const cursorPos = selection.rangeCount > 0 ? selection.getRangeAt(0).endOffset : 0;
-            
-            await updateTaskIndentWithFocus(taskId, newIndent, currentText, cursorPos);
+            try {
+                const response = await fetch(`/api/tasks/${taskId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ indent: newIndent })
+                });
+                
+                if (response.ok) {
+                    const task = dailyTasks.find(t => t.id === taskId);
+                    if (task) {
+                        task.indent = newIndent;
+                        console.log('Updated daily task indent to:', newIndent);
+                        renderTasks();
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating task indent:', error);
+            }
         }
 
         // 定常タスクのインデントを更新（フォーカス維持強化版）
@@ -1111,14 +1151,26 @@
             }
         }
 
-        // 定常タスクのインデントを更新（従来版：後方互換性のため）
+        // 定常タスクのインデントを更新（シンプル版）
         async function updateRoutineTaskIndent(taskId, newIndent) {
-            const currentElement = document.activeElement;
-            const currentText = currentElement && currentElement.classList.contains('task-text') ? currentElement.textContent : '';
-            const selection = window.getSelection();
-            const cursorPos = selection.rangeCount > 0 ? selection.getRangeAt(0).endOffset : 0;
-            
-            await updateRoutineTaskIndentWithFocus(taskId, newIndent, currentText, cursorPos);
+            try {
+                const response = await fetch(`/api/routine/${taskId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ indent: newIndent })
+                });
+                
+                if (response.ok) {
+                    const task = routineTasks.find(t => t.id === taskId);
+                    if (task) {
+                        task.indent = newIndent;
+                        console.log('Updated routine task indent to:', newIndent);
+                        renderTasks();
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating routine task indent:', error);
+            }
         }
 
         // 共通のフォーカス復元関数
