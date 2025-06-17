@@ -241,27 +241,7 @@
             </button>
         </div>
 
-        <!-- キーボードショートカット説明 -->
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-            <div class="flex items-center justify-between">
-                <h4 class="text-sm font-medium text-blue-800">💡 キーボードショートカット</h4>
-                <button id="toggleHelp" class="text-blue-600 hover:text-blue-800 text-xs underline">表示/非表示</button>
-            </div>
-            <div id="helpContent" class="mt-2 text-xs text-blue-700 hidden">
-                <div class="grid grid-cols-2 gap-2">
-                    <div><kbd class="bg-white px-1 rounded border">Enter</kbd> 新しいタスクを追加</div>
-                    <div><kbd class="bg-white px-1 rounded border">Tab</kbd> インデント（カーソルが末尾にある時）</div>
-                    <div><kbd class="bg-white px-1 rounded border">Shift+Tab</kbd> インデント解除</div>
-                    <div><kbd class="bg-white px-1 rounded border">Backspace</kbd> 空のタスクを削除</div>
-                </div>
-                <p class="mt-1 text-xs text-blue-600">
-                    ✅ Tab/Shift+Tabキーのブラウザデフォルト動作（フォーカス移動）は完全に無効化されています<br>
-                    ✅ インデント操作後もタスクのフォーカスとカーソル位置が自動的に復元されます<br>
-                    ※ インデント/インデント解除は、テキスト入力完了後（カーソルが末尾）のみ動作します<br>
-                    ※ ToDoアプリ内では、Tab/Shift+Tabで他の要素にフォーカスが移動することはありません
-                </p>
-            </div>
-        </div>
+
 
         <!-- 定常TODOリスト表示エリア -->
         <div class="mb-6">
@@ -466,15 +446,15 @@
 
             if (task.type === 'daily') {
                 taskTextSpan.addEventListener('blur', () => saveTaskText(task.id, taskTextSpan.textContent));
-                taskTextSpan.addEventListener('keydown', (e) => {
+                taskTextSpan.addEventListener('keydown', async (e) => {
                     console.log('Daily task keydown:', e.key, 'for task:', task.id);
-                    handleTaskKeydown(e, task.id, taskTextSpan);
+                    await handleTaskKeydown(e, task.id, taskTextSpan);
                 });
             } else if (task.type === 'routine') {
                 taskTextSpan.addEventListener('blur', () => saveRoutineTaskText(task.id, taskTextSpan.textContent));
-                taskTextSpan.addEventListener('keydown', (e) => {
+                taskTextSpan.addEventListener('keydown', async (e) => {
                     console.log('Routine task keydown:', e.key, 'for task:', task.id);
-                    handleRoutineTaskKeydown(e, task.id, taskTextSpan);
+                    await handleRoutineTaskKeydown(e, task.id, taskTextSpan);
                 });
             }
             li.appendChild(taskTextSpan);
