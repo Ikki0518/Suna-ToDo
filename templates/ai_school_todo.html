@@ -186,6 +186,12 @@
                     管理者ダッシュボード
                 </a>
                 {% endif %}
+                <!-- 管理者ダッシュボードボタン（管理者のみ表示） -->
+                {% if session.username == 'admin' %}
+                <a href="/admin" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-sm transition-colors mr-2">
+                    📊 管理者ダッシュボード
+                </a>
+                {% endif %}
                 <!-- ログアウトボタン -->
                 <a href="/logout" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-lg text-sm transition-colors">
                     ログアウト
@@ -233,6 +239,28 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                 </svg>
             </button>
+        </div>
+
+        <!-- キーボードショートカット説明 -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+            <div class="flex items-center justify-between">
+                <h4 class="text-sm font-medium text-blue-800">💡 キーボードショートカット</h4>
+                <button id="toggleHelp" class="text-blue-600 hover:text-blue-800 text-xs underline">表示/非表示</button>
+            </div>
+            <div id="helpContent" class="mt-2 text-xs text-blue-700 hidden">
+                <div class="grid grid-cols-2 gap-2">
+                    <div><kbd class="bg-white px-1 rounded border">Enter</kbd> 新しいタスクを追加</div>
+                    <div><kbd class="bg-white px-1 rounded border">Tab</kbd> インデント（カーソルが末尾にある時）</div>
+                    <div><kbd class="bg-white px-1 rounded border">Shift+Tab</kbd> インデント解除</div>
+                    <div><kbd class="bg-white px-1 rounded border">Backspace</kbd> 空のタスクを削除</div>
+                </div>
+                <p class="mt-1 text-xs text-blue-600">
+                    ✅ Tab/Shift+Tabキーのブラウザデフォルト動作（フォーカス移動）は完全に無効化されています<br>
+                    ✅ インデント操作後もタスクのフォーカスとカーソル位置が自動的に復元されます<br>
+                    ※ インデント/インデント解除は、テキスト入力完了後（カーソルが末尾）のみ動作します<br>
+                    ※ ToDoアプリ内では、Tab/Shift+Tabで他の要素にフォーカスが移動することはありません
+                </p>
+            </div>
         </div>
 
         <!-- 定常TODOリスト表示エリア -->
@@ -479,17 +507,36 @@
                     }
                 }
             } else if (e.key === 'Tab') {
+                // ToDoアプリ内では常にTabキー（Shift+Tab含む）のデフォルト動作（フォーカス移動）を無効化
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('Tab key pressed for daily task:', taskId);
-                const task = dailyTasks.find(t => t.id === taskId);
-                if (task) {
-                    const newIndent = e.shiftKey
-                        ? Math.max(0, (task.indent || 0) - 1)
-                        : Math.min(4, (task.indent || 0) + 1);
-                    console.log('Daily task indent changing from', task.indent, 'to', newIndent);
-                    updateTaskIndent(taskId, newIndent);
+                
+                const keyType = e.shiftKey ? 'Shift+Tab' : 'Tab';
+                console.log(`${keyType} pressed in daily task:`, taskId);
+                
+                // テキストが空でないか、フォーカスがテキストの末尾にある場合のみインデント実行
+                const text = textElement.textContent.trim();
+                const selection = window.getSelection();
+                const isAtEnd = selection.rangeCount > 0 && 
+                              selection.getRangeAt(0).endOffset === textElement.textContent.length;
+                
+                // テキストが存在し、かつカーソルが末尾にある場合、またはテキストが空の場合のみインデントを実行
+                if ((text.length > 0 && isAtEnd) || text.length === 0) {
+                    const task = dailyTasks.find(t => t.id === taskId);
+                    if (task) {
+                        const currentIndent = task.indent || 0;
+                        const newIndent = e.shiftKey
+                            ? Math.max(0, currentIndent - 1)
+                            : Math.min(4, currentIndent + 1);
+                        
+                        console.log(`Daily task indent: ${currentIndent} → ${newIndent} (${keyType})`);
+                        updateTaskIndent(taskId, newIndent);
+                        // フォーカス復元はupdateTaskIndent関数内で処理
+                    }
+                } else {
+                    console.log(`${keyType} ignored - not at end of text for daily task:`, taskId);
                 }
+                // 全ての場合でブラウザのデフォルトTabキー動作は無効化済み
             } else if (e.key === 'Backspace' && textElement.textContent.trim() === '') {
                 // 空のタスクを削除して前のタスクにフォーカス
                 e.preventDefault();
@@ -704,17 +751,36 @@
                     }
                 }
             } else if (e.key === 'Tab') {
+                // ToDoアプリ内では常にTabキー（Shift+Tab含む）のデフォルト動作（フォーカス移動）を無効化
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('Tab key pressed for routine task:', taskId);
-                const task = routineTasks.find(t => t.id === taskId);
-                if (task) {
-                    const newIndent = e.shiftKey
-                        ? Math.max(0, (task.indent || 0) - 1)
-                        : Math.min(4, (task.indent || 0) + 1);
-                    console.log('Routine task indent changing from', task.indent, 'to', newIndent);
-                    updateRoutineTaskIndent(taskId, newIndent);
+                
+                const keyType = e.shiftKey ? 'Shift+Tab' : 'Tab';
+                console.log(`${keyType} pressed in routine task:`, taskId);
+                
+                // テキストが空でないか、フォーカスがテキストの末尾にある場合のみインデント実行
+                const text = textElement.textContent.trim();
+                const selection = window.getSelection();
+                const isAtEnd = selection.rangeCount > 0 && 
+                              selection.getRangeAt(0).endOffset === textElement.textContent.length;
+                
+                // テキストが存在し、かつカーソルが末尾にある場合、またはテキストが空の場合のみインデントを実行
+                if ((text.length > 0 && isAtEnd) || text.length === 0) {
+                    const task = routineTasks.find(t => t.id === taskId);
+                    if (task) {
+                        const currentIndent = task.indent || 0;
+                        const newIndent = e.shiftKey
+                            ? Math.max(0, currentIndent - 1)
+                            : Math.min(4, currentIndent + 1);
+                        
+                        console.log(`Routine task indent: ${currentIndent} → ${newIndent} (${keyType})`);
+                        updateRoutineTaskIndent(taskId, newIndent);
+                        // フォーカス復元はupdateRoutineTaskIndent関数内で処理
+                    }
+                } else {
+                    console.log(`${keyType} ignored - not at end of text for routine task:`, taskId);
                 }
+                // 全ての場合でブラウザのデフォルトTabキー動作は無効化済み
             } else if (e.key === 'Backspace' && textElement.textContent.trim() === '') {
                 // 空のタスクを削除して前のタスクにフォーカス
                 e.preventDefault();
@@ -954,10 +1020,52 @@
                         task.indent = newIndent;
                         console.log('Updated daily task indent to:', newIndent);
                         
-                        // UI更新を確実にするために少し遅延
+                        // カーソル位置を保存
+                        const activeElement = document.activeElement;
+                        const selection = window.getSelection();
+                        const cursorPosition = selection.rangeCount > 0 ? selection.getRangeAt(0).endOffset : 0;
+                        
+                        // UI更新
+                        renderTasks();
+                        
+                        // フォーカスとカーソル位置を復元
                         setTimeout(() => {
-                            renderTasks();
-                        }, 10);
+                            const taskSpan = document.querySelector(`#task-${taskId} .task-text`);
+                            if (taskSpan) {
+                                taskSpan.focus();
+                                
+                                // カーソル位置を復元
+                                try {
+                                    const range = document.createRange();
+                                    const textNode = taskSpan.firstChild || taskSpan;
+                                    const maxOffset = textNode.textContent ? textNode.textContent.length : 0;
+                                    const safeOffset = Math.min(cursorPosition, maxOffset);
+                                    
+                                    if (textNode.nodeType === Node.TEXT_NODE) {
+                                        range.setStart(textNode, safeOffset);
+                                        range.setEnd(textNode, safeOffset);
+                                    } else {
+                                        range.selectNodeContents(taskSpan);
+                                        range.collapse(false);
+                                    }
+                                    
+                                    const sel = window.getSelection();
+                                    sel.removeAllRanges();
+                                    sel.addRange(range);
+                                    
+                                    console.log(`Daily task focus restored to position ${safeOffset}`);
+                                } catch (e) {
+                                    console.log('Failed to restore cursor position, setting to end:', e);
+                                    // フォールバック: カーソルを末尾に設定
+                                    const range = document.createRange();
+                                    range.selectNodeContents(taskSpan);
+                                    range.collapse(false);
+                                    const sel = window.getSelection();
+                                    sel.removeAllRanges();
+                                    sel.addRange(range);
+                                }
+                            }
+                        }, 50);
                     }
                 }
             } catch (error) {
@@ -980,10 +1088,52 @@
                         task.indent = newIndent;
                         console.log('Updated routine task indent to:', newIndent);
                         
-                        // UI更新を確実にするために少し遅延
+                        // カーソル位置を保存
+                        const activeElement = document.activeElement;
+                        const selection = window.getSelection();
+                        const cursorPosition = selection.rangeCount > 0 ? selection.getRangeAt(0).endOffset : 0;
+                        
+                        // UI更新
+                        renderTasks();
+                        
+                        // フォーカスとカーソル位置を復元
                         setTimeout(() => {
-                            renderTasks();
-                        }, 10);
+                            const taskSpan = document.querySelector(`#task-${taskId} .task-text`);
+                            if (taskSpan) {
+                                taskSpan.focus();
+                                
+                                // カーソル位置を復元
+                                try {
+                                    const range = document.createRange();
+                                    const textNode = taskSpan.firstChild || taskSpan;
+                                    const maxOffset = textNode.textContent ? textNode.textContent.length : 0;
+                                    const safeOffset = Math.min(cursorPosition, maxOffset);
+                                    
+                                    if (textNode.nodeType === Node.TEXT_NODE) {
+                                        range.setStart(textNode, safeOffset);
+                                        range.setEnd(textNode, safeOffset);
+                                    } else {
+                                        range.selectNodeContents(taskSpan);
+                                        range.collapse(false);
+                                    }
+                                    
+                                    const sel = window.getSelection();
+                                    sel.removeAllRanges();
+                                    sel.addRange(range);
+                                    
+                                    console.log(`Routine task focus restored to position ${safeOffset}`);
+                                } catch (e) {
+                                    console.log('Failed to restore cursor position, setting to end:', e);
+                                    // フォールバック: カーソルを末尾に設定
+                                    const range = document.createRange();
+                                    range.selectNodeContents(taskSpan);
+                                    range.collapse(false);
+                                    const sel = window.getSelection();
+                                    sel.removeAllRanges();
+                                    sel.addRange(range);
+                                }
+                            }
+                        }, 50);
                     }
                 }
             } catch (error) {
@@ -1015,6 +1165,25 @@
                     loadTasks();
                 }
             });
+
+            // ヘルプの表示/非表示ボタン
+            document.getElementById('toggleHelp').addEventListener('click', () => {
+                const helpContent = document.getElementById('helpContent');
+                helpContent.classList.toggle('hidden');
+            });
+
+            // ToDoアプリ全体でTab/Shift+Tabキーのデフォルト動作を無効化
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Tab') {
+                    // 常にTabキー（Shift+Tab含む）のデフォルト動作を無効化
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // タスクテキスト内の場合は、各タスクのキーハンドラーで処理される
+                    // タスクテキスト外の場合は、何もしない（フォーカス移動を完全に無効化）
+                    console.log('Global Tab key intercepted:', e.shiftKey ? 'Shift+Tab' : 'Tab');
+                }
+            }, true); // キャプチャフェーズで処理
 
             // 定常タスク追加ボタンは削除済み
         });

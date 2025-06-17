@@ -112,6 +112,14 @@ def init_database():
             VALUES (?, ?)
         ''', ('demo', password_hash))
         
+        # 管理者ユーザーを作成
+        admin_password_hash = hashlib.sha256('admin123'.encode()).hexdigest()
+        cursor.execute('''
+            INSERT OR IGNORE INTO users (username, password_hash)
+            VALUES (?, ?)
+        ''', ('admin', admin_password_hash))
+        logger.info("管理者ユーザー作成: admin/admin123")
+        
         # サンプルタスクを作成（デモ用）
         today = datetime.now().strftime('%Y-%m-%d')
         
@@ -180,6 +188,38 @@ def authenticate_user(username, password):
         logger.error(f"Authentication error: {e}")
         return None
 
+def create_user(username, password):
+    """新規ユーザーを作成"""
+    try:
+        conn = sqlite3.connect(get_db_path())
+        cursor = conn.cursor()
+        
+        # ユーザー名の重複チェック
+        cursor.execute('SELECT id FROM users WHERE username = ?', (username,))
+        if cursor.fetchone():
+            conn.close()
+            return None  # ユーザー名が既に存在
+        
+        # パスワードをハッシュ化
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
+        
+        # 新規ユーザーを挿入
+        cursor.execute('''
+            INSERT INTO users (username, password_hash)
+            VALUES (?, ?)
+        ''', (username, password_hash))
+        
+        user_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"新規ユーザー作成: {username}")
+        return user_id
+        
+    except Exception as e:
+        logger.error(f"User creation error: {e}")
+        return None
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -227,6 +267,28 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for('index'))
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    """新規登録ページ"""
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        confirm_password = request.form['confirm_password']
+        
+        if password != confirm_password:
+            return render_template('register.html', error='パスワードが一致しません')
+        
+        if len(username) < 3 or len(password) < 6:
+            return render_template('register.html', error='ユーザー名は3文字以上、パスワードは6文字以上で入力してください')
+        
+        user_id = create_user(username, password)
+        if user_id:
+            return render_template('register.html', success='アカウントが作成されました。ログインしてください。')
+        else:
+            return render_template('register.html', error='そのユーザー名は既に使用されています')
+    
+    return render_template('register.html')
 
 @app.route('/api/test')
 @login_required
@@ -536,5 +598,87 @@ def health():
     except Exception as e:
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
+# 管理者ダッシュボード
+@app.route('/admin')
+@login_required
+def admin_dashboard():
+    if session.get('username') != 'admin':
+        return redirect(url_for('index'))
+    
+    try:
+        conn = sqlite3.connect(get_db_path())
+        cursor = conn.cursor()
+        
+        # 統計情報を取得
+        cursor.execute('SELECT COUNT(*) FROM users')
+        user_count = cursor.fetchone()[0]
+        
+        cursor.execute('SELECT COUNT(*) FROM routine_tasks')
+        task_count = cursor.fetchone()[0]
+        
+        cursor.execute('SELECT username, created_at FROM users ORDER BY created_at DESC')
+        users = cursor.fetchall()
+        
+        cursor.execute('''
+            SELECT rt.text, rt.created_at, u.username
+            FROM routine_tasks rt
+            JOIN users u ON rt.user_id = u.id
+            ORDER BY rt.created_at DESC
+            LIMIT 10
+        ''')
+        recent_tasks = cursor.fetchall()
+        
+        conn.close()
+        
+        return render_template('admin_dashboard.html',
+                             user_count=user_count,
+                             task_count=task_count,
+                             users=users,
+                             recent_tasks=recent_tasks)
+    except Exception as e:
+        logger.error(f"Admin dashboard error: {e}")
+        return "管理者ダッシュボードでエラーが発生しました", 500
+
+@app.route('/admin/users')
+@login_required
+def admin_users():
+    if session.get('username') != 'admin':
+        return redirect(url_for('index'))
+    
+    try:
+        conn = sqlite3.connect(get_db_path())
+        cursor = conn.cursor()
+        cursor.execute('SELECT id, username, created_at FROM users ORDER BY created_at DESC')
+        users = cursor.fetchall()
+        conn.close()
+        
+        return render_template('admin_users.html', users=users)
+    except Exception as e:
+        logger.error(f"Admin users error: {e}")
+        return "ユーザー管理でエラーが発生しました", 500
+
+@app.route('/admin/tasks')
+@login_required
+def admin_tasks():
+    if session.get('username') != 'admin':
+        return redirect(url_for('index'))
+    
+    try:
+        conn = sqlite3.connect(get_db_path())
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT rt.id, rt.text, 0 as completed, rt.created_at, u.username
+            FROM routine_tasks rt
+            JOIN users u ON rt.user_id = u.id
+            ORDER BY rt.created_at DESC
+        ''')
+        tasks = cursor.fetchall()
+        conn.close()
+        
+        return render_template('admin_tasks.html', tasks=tasks)
+    except Exception as e:
+        logger.error(f"Admin tasks error: {e}")
+        return "タスク管理でエラーが発生しました", 500
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=8000)
