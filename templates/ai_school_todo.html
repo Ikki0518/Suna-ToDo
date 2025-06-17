@@ -180,15 +180,9 @@
         <header class="text-center mb-8 relative">
             <!-- ナビゲーションボタン -->
             <div class="absolute top-0 right-0 flex space-x-2">
-                {% if session.user_role == 'admin' %}
-                <!-- 管理者ダッシュボードボタン -->
-                <a href="/admin" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm transition-colors">
-                    管理者ダッシュボード
-                </a>
-                {% endif %}
                 <!-- 管理者ダッシュボードボタン（管理者のみ表示） -->
                 {% if session.username == 'admin' %}
-                <a href="/admin" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-sm transition-colors mr-2">
+                <a href="/admin" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-sm transition-colors">
                     📊 管理者ダッシュボード
                 </a>
                 {% endif %}

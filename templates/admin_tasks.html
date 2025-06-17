@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タスク管理 - 管理者ダッシュボード</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .glass-morphism {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- ヘッダー -->
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-4xl font-bold text-white">📋 タスク管理</h1>
+            <div class="flex space-x-4">
+                <a href="/admin" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition">
+                    📊 ダッシュボード
+                </a>
+                <a href="/" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition">
+                    🏠 ホーム
+                </a>
+            </div>
+        </div>
+
+        <!-- 統計情報 -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="glass-morphism rounded-xl p-6">
+                <div class="flex items-center">
+                    <div class="text-3xl mr-4">📝</div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">総タスク数</h3>
+                        <p class="text-2xl font-bold text-white">{{ tasks|length }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass-morphism rounded-xl p-6">
+                <div class="flex items-center">
+                    <div class="text-3xl mr-4">✅</div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">完了済み</h3>
+                        <p class="text-2xl font-bold text-green-300">
+                            {{ tasks|selectattr('2', 'equalto', 1)|list|length }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass-morphism rounded-xl p-6">
+                <div class="flex items-center">
+                    <div class="text-3xl mr-4">⏳</div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">未完了</h3>
+                        <p class="text-2xl font-bold text-yellow-300">
+                            {{ tasks|selectattr('2', 'equalto', 0)|list|length }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass-morphism rounded-xl p-6">
+                <div class="flex items-center">
+                    <div class="text-3xl mr-4">📊</div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">完了率</h3>
+                        <p class="text-2xl font-bold text-blue-300">
+                            {% if tasks|length > 0 %}
+                                {{ ((tasks|selectattr('2', 'equalto', 1)|list|length / tasks|length) * 100)|round|int }}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- フィルター -->
+        <div class="glass-morphism rounded-xl p-4 mb-6">
+            <div class="flex flex-wrap gap-4">
+                <button onclick="filterTasks('all')" class="filter-btn bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition">
+                    全て
+                </button>
+                <button onclick="filterTasks('completed')" class="filter-btn bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition">
+                    完了済み
+                </button>
+                <button onclick="filterTasks('pending')" class="filter-btn bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition">
+                    未完了
+                </button>
+            </div>
+        </div>
+
+        <!-- タスク一覧 -->
+        <div class="glass-morphism rounded-xl p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-white">全タスク一覧</h2>
+                <div class="text-white bg-blue-500 px-4 py-2 rounded-lg">
+                    表示中: <span id="task-count">{{ tasks|length }}</span> タスク
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-white">
+                    <thead>
+                        <tr class="border-b border-white border-opacity-20">
+                            <th class="text-left py-3 px-4">ID</th>
+                            <th class="text-left py-3 px-4">タスク内容</th>
+                            <th class="text-left py-3 px-4">ユーザー</th>
+                            <th class="text-left py-3 px-4">ステータス</th>
+                            <th class="text-left py-3 px-4">作成日時</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tasks-tbody">
+                        {% for task in tasks %}
+                        <tr class="task-row border-b border-white border-opacity-10 hover:bg-white hover:bg-opacity-5 transition" 
+                            data-status="{{ 'completed' if task[2] == 1 else 'pending' }}">
+                            <td class="py-3 px-4 font-mono text-sm">{{ task[0] }}</td>
+                            <td class="py-3 px-4 max-w-xs">
+                                <div class="truncate" title="{{ task[1] }}">
+                                    {{ task[1][:50] + '...' if task[1]|length > 50 else task[1] }}
+                                </div>
+                            </td>
+                            <td class="py-3 px-4">
+                                <div class="flex items-center">
+                                    {% if task[4] == 'admin' %}
+                                        <span class="text-yellow-300 mr-2">👑</span>
+                                    {% elif task[4] == 'demo' %}
+                                        <span class="text-blue-300 mr-2">🎯</span>
+                                    {% else %}
+                                        <span class="text-green-300 mr-2">👤</span>
+                                    {% endif %}
+                                    {{ task[4] }}
+                                </div>
+                            </td>
+                            <td class="py-3 px-4">
+                                {% if task[2] == 1 %}
+                                    <span class="bg-green-500 text-white px-2 py-1 rounded-full text-xs flex items-center w-fit">
+                                        ✅ 完了
+                                    </span>
+                                {% else %}
+                                    <span class="bg-yellow-500 text-black px-2 py-1 rounded-full text-xs flex items-center w-fit">
+                                        ⏳ 未完了
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="py-3 px-4 text-sm">{{ task[3] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function filterTasks(status) {
+            const rows = document.querySelectorAll('.task-row');
+            const countElement = document.getElementById('task-count');
+            let visibleCount = 0;
+            
+            rows.forEach(row => {
+                if (status === 'all' || row.dataset.status === status) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            
+            countElement.textContent = visibleCount;
+            
+            // アクティブボタンのスタイル更新
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('ring-2', 'ring-white');
+            });
+            
+            event.target.classList.add('ring-2', 'ring-white');
+        }
+    </script>
+</body>
+</html>

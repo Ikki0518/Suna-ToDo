@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ユーザー管理 - 管理者ダッシュボード</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .glass-morphism {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- ヘッダー -->
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-4xl font-bold text-white">👥 ユーザー管理</h1>
+            <div class="flex space-x-4">
+                <a href="/admin" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition">
+                    📊 ダッシュボード
+                </a>
+                <a href="/" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition">
+                    🏠 ホーム
+                </a>
+            </div>
+        </div>
+
+        <!-- ユーザー一覧 -->
+        <div class="glass-morphism rounded-xl p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-white">登録ユーザー一覧</h2>
+                <div class="text-white bg-blue-500 px-4 py-2 rounded-lg">
+                    総ユーザー数: {{ users|length }}
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-white">
+                    <thead>
+                        <tr class="border-b border-white border-opacity-20">
+                            <th class="text-left py-3 px-4">ID</th>
+                            <th class="text-left py-3 px-4">ユーザー名</th>
+                            <th class="text-left py-3 px-4">登録日時</th>
+                            <th class="text-left py-3 px-4">ステータス</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr class="border-b border-white border-opacity-10 hover:bg-white hover:bg-opacity-5 transition">
+                            <td class="py-3 px-4 font-mono">{{ user[0] }}</td>
+                            <td class="py-3 px-4">
+                                <div class="flex items-center">
+                                    {% if user[1] == 'admin' %}
+                                        <span class="text-yellow-300 mr-2">👑</span>
+                                    {% elif user[1] == 'demo' %}
+                                        <span class="text-blue-300 mr-2">🎯</span>
+                                    {% else %}
+                                        <span class="text-green-300 mr-2">👤</span>
+                                    {% endif %}
+                                    {{ user[1] }}
+                                </div>
+                            </td>
+                            <td class="py-3 px-4">{{ user[2] }}</td>
+                            <td class="py-3 px-4">
+                                {% if user[1] == 'admin' %}
+                                    <span class="bg-yellow-500 text-black px-2 py-1 rounded-full text-xs">管理者</span>
+                                {% elif user[1] == 'demo' %}
+                                    <span class="bg-blue-500 text-white px-2 py-1 rounded-full text-xs">デモ</span>
+                                {% else %}
+                                    <span class="bg-green-500 text-white px-2 py-1 rounded-full text-xs">一般</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 統計情報 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+            <div class="glass-morphism rounded-xl p-6">
+                <div class="flex items-center">
+                    <div class="text-3xl mr-4">👑</div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">管理者</h3>
+                        <p class="text-2xl font-bold text-yellow-300">
+                            {{ users|selectattr('1', 'equalto', 'admin')|list|length }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass-morphism rounded-xl p-6">
+                <div class="flex items-center">
+                    <div class="text-3xl mr-4">🎯</div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">デモユーザー</h3>
+                        <p class="text-2xl font-bold text-blue-300">
+                            {{ users|selectattr('1', 'equalto', 'demo')|list|length }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass-morphism rounded-xl p-6">
+                <div class="flex items-center">
+                    <div class="text-3xl mr-4">👤</div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">一般ユーザー</h3>
+                        <p class="text-2xl font-bold text-green-300">
+                            {{ users|rejectattr('1', 'in', ['admin', 'demo'])|list|length }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
