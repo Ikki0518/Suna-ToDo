@@ -510,9 +510,15 @@
                             : Math.min(4, currentIndent + 1);
                         
                         console.log(`Daily task indent: ${currentIndent} → ${newIndent} (${keyType})`);
+                        console.log('About to call updateTaskIndent with:', taskId, newIndent);
                         
                         // インデント実行
-                        await updateTaskIndent(taskId, newIndent);
+                        try {
+                            await updateTaskIndent(taskId, newIndent);
+                            console.log('updateTaskIndent completed successfully');
+                        } catch (error) {
+                            console.error('Error in updateTaskIndent:', error);
+                        }
                         
                         // フォーカスを確実に復元
                         setTimeout(() => {
@@ -774,9 +780,15 @@
                             : Math.min(4, currentIndent + 1);
                         
                         console.log(`Routine task indent: ${currentIndent} → ${newIndent} (${keyType})`);
+                        console.log('About to call updateRoutineTaskIndent with:', taskId, newIndent);
                         
                         // インデント実行
-                        await updateRoutineTaskIndent(taskId, newIndent);
+                        try {
+                            await updateRoutineTaskIndent(taskId, newIndent);
+                            console.log('updateRoutineTaskIndent completed successfully');
+                        } catch (error) {
+                            console.error('Error in updateRoutineTaskIndent:', error);
+                        }
                         
                         // フォーカスを確実に復元
                         setTimeout(() => {
@@ -1070,19 +1082,30 @@
         // タスクのインデントを更新（シンプル版）
         async function updateTaskIndent(taskId, newIndent) {
             try {
+                console.log('updateTaskIndent: sending request to /api/tasks/' + taskId + ' with indent:', newIndent);
+                
                 const response = await fetch(`/api/tasks/${taskId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ indent: newIndent })
                 });
                 
+                console.log('updateTaskIndent: response status:', response.status);
+                
                 if (response.ok) {
                     const task = dailyTasks.find(t => t.id === taskId);
                     if (task) {
+                        console.log('updateTaskIndent: found task, updating indent from', task.indent, 'to', newIndent);
                         task.indent = newIndent;
                         console.log('Updated daily task indent to:', newIndent);
                         renderTasks();
+                    } else {
+                        console.error('updateTaskIndent: task not found in dailyTasks:', taskId);
                     }
+                } else {
+                    console.error('updateTaskIndent: API response not ok:', response.status);
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
                 }
             } catch (error) {
                 console.error('Error updating task indent:', error);
@@ -1134,19 +1157,30 @@
         // 定常タスクのインデントを更新（シンプル版）
         async function updateRoutineTaskIndent(taskId, newIndent) {
             try {
+                console.log('updateRoutineTaskIndent: sending request to /api/routine/' + taskId + ' with indent:', newIndent);
+                
                 const response = await fetch(`/api/routine/${taskId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ indent: newIndent })
                 });
                 
+                console.log('updateRoutineTaskIndent: response status:', response.status);
+                
                 if (response.ok) {
                     const task = routineTasks.find(t => t.id === taskId);
                     if (task) {
+                        console.log('updateRoutineTaskIndent: found task, updating indent from', task.indent, 'to', newIndent);
                         task.indent = newIndent;
                         console.log('Updated routine task indent to:', newIndent);
                         renderTasks();
+                    } else {
+                        console.error('updateRoutineTaskIndent: task not found in routineTasks:', taskId);
                     }
+                } else {
+                    console.error('updateRoutineTaskIndent: API response not ok:', response.status);
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
                 }
             } catch (error) {
                 console.error('Error updating routine task indent:', error);
