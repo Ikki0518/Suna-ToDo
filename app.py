@@ -744,5 +744,68 @@ def admin_tasks():
         logger.error(f"Admin tasks error: {e}")
         return "タスク管理でエラーが発生しました", 500
 
+@app.route('/admin/user/<username>')
+@login_required
+def admin_user_detail(username):
+    if not is_admin(session.get('username')):
+        return redirect(url_for('index'))
+    
+    try:
+        # 日付パラメータを取得（デフォルトは今日）
+        date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+        
+        conn = sqlite3.connect(get_db_path())
+        cursor = conn.cursor()
+        
+        # ユーザー情報を取得
+        cursor.execute('SELECT id, username, created_at FROM users WHERE username = ?', (username,))
+        user_row = cursor.fetchone()
+        
+        if not user_row:
+            conn.close()
+            return "ユーザーが見つかりません", 404
+        
+        user_detail = {
+            'id': user_row[0],
+            'username': user_row[1],
+            'created_at': user_row[2]
+        }
+        
+        # 指定日の日次タスクを取得
+        cursor.execute('''
+            SELECT * FROM daily_tasks
+            WHERE user_id = ? AND date = ?
+            ORDER BY position, created_at
+        ''', (user_detail['id'], date_str))
+        daily_tasks = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
+        
+        # 定常タスクを取得
+        cursor.execute('''
+            SELECT * FROM routine_tasks
+            WHERE user_id = ?
+            ORDER BY position, created_at
+        ''', (user_detail['id'],))
+        routine_tasks = [dict(zip([col[0] for col in cursor.description], row)) for row in cursor.fetchall()]
+        
+        # 定常タスクの指定日の完了状況を取得
+        for task in routine_tasks:
+            cursor.execute('''
+                SELECT completed FROM routine_completions
+                WHERE user_id = ? AND routine_id = ? AND date = ?
+            ''', (user_detail['id'], task['id'], date_str))
+            result = cursor.fetchone()
+            task['completed'] = result[0] if result else False
+        
+        conn.close()
+        
+        return render_template('user_detail.html',
+                             user_detail=user_detail,
+                             daily_tasks=daily_tasks,
+                             routine_tasks=routine_tasks,
+                             current_date=date_str)
+    except Exception as e:
+        logger.error(f"Admin user detail error: {e}")
+        return "ユーザー詳細でエラーが発生しました", 500
+
 if __name__ == '__main__':
     app.run(debug=True, port=8000)

@@ -5,117 +5,135 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ユーザー管理 - 管理者ダッシュボード</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        .glass-morphism {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+        body {
+            font-family: 'Inter', sans-serif;
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700 min-h-screen">
-    <div class="container mx-auto px-4 py-8">
+<body class="bg-white min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
         <!-- ヘッダー -->
-        <div class="flex justify-between items-center mb-8">
-            <h1 class="text-4xl font-bold text-white">👥 ユーザー管理</h1>
+        <div class="flex justify-between items-center mb-8 border-b pb-4">
+            <h1 class="text-3xl font-semibold text-gray-900">👥 ユーザー管理</h1>
             <div class="flex space-x-4">
-                <a href="/admin" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition">
+                <a href="/admin" class="text-gray-600 hover:text-gray-800 px-3 py-2 text-sm transition-colors">
                     📊 ダッシュボード
                 </a>
-                <a href="/" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition">
-                    🏠 ホーム
+                <a href="/admin/tasks" class="text-gray-600 hover:text-gray-800 px-3 py-2 text-sm transition-colors">
+                    📋 タスク管理
                 </a>
-            </div>
-        </div>
-
-        <!-- ユーザー一覧 -->
-        <div class="glass-morphism rounded-xl p-6">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-white">登録ユーザー一覧</h2>
-                <div class="text-white bg-blue-500 px-4 py-2 rounded-lg">
-                    総ユーザー数: {{ users|length }}
-                </div>
-            </div>
-            
-            <div class="overflow-x-auto">
-                <table class="w-full text-white">
-                    <thead>
-                        <tr class="border-b border-white border-opacity-20">
-                            <th class="text-left py-3 px-4">ID</th>
-                            <th class="text-left py-3 px-4">ユーザー名</th>
-                            <th class="text-left py-3 px-4">登録日時</th>
-                            <th class="text-left py-3 px-4">ステータス</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for user in users %}
-                        <tr class="border-b border-white border-opacity-10 hover:bg-white hover:bg-opacity-5 transition">
-                            <td class="py-3 px-4 font-mono">{{ user[0] }}</td>
-                            <td class="py-3 px-4">
-                                <div class="flex items-center">
-                                    {% if user[1] == 'admin' %}
-                                        <span class="text-yellow-300 mr-2">👑</span>
-                                    {% elif user[1] == 'demo' %}
-                                        <span class="text-blue-300 mr-2">🎯</span>
-                                    {% else %}
-                                        <span class="text-green-300 mr-2">👤</span>
-                                    {% endif %}
-                                    {{ user[1] }}
-                                </div>
-                            </td>
-                            <td class="py-3 px-4">{{ user[2] }}</td>
-                            <td class="py-3 px-4">
-                                {% if user[1] == 'admin' %}
-                                    <span class="bg-yellow-500 text-black px-2 py-1 rounded-full text-xs">管理者</span>
-                                {% elif user[1] == 'demo' %}
-                                    <span class="bg-blue-500 text-white px-2 py-1 rounded-full text-xs">デモ</span>
-                                {% else %}
-                                    <span class="bg-green-500 text-white px-2 py-1 rounded-full text-xs">一般</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                <a href="/logout" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded text-sm transition-colors">
+                    ログアウト
+                </a>
             </div>
         </div>
 
         <!-- 統計情報 -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-            <div class="glass-morphism rounded-xl p-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-gray-50 rounded-lg p-6 border">
+                <div class="flex items-center">
+                    <div class="text-3xl mr-4">👥</div>
+                    <div>
+                        <h3 class="text-base font-medium text-gray-700">総ユーザー数</h3>
+                        <p class="text-2xl font-semibold text-gray-900">{{ users|length }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-yellow-50 rounded-lg p-6 border border-yellow-200">
                 <div class="flex items-center">
                     <div class="text-3xl mr-4">👑</div>
                     <div>
-                        <h3 class="text-lg font-semibold text-white">管理者</h3>
-                        <p class="text-2xl font-bold text-yellow-300">
-                            {{ users|selectattr('1', 'equalto', 'admin')|list|length }}
+                        <h3 class="text-base font-medium text-gray-700">管理者</h3>
+                        <p class="text-2xl font-semibold text-yellow-600">
+                            {{ users|selectattr('1', 'in', ['admin', 'ikki_y0518@icloud.com'])|list|length }}
                         </p>
                     </div>
                 </div>
             </div>
             
-            <div class="glass-morphism rounded-xl p-6">
+            <div class="bg-blue-50 rounded-lg p-6 border border-blue-200">
                 <div class="flex items-center">
                     <div class="text-3xl mr-4">🎯</div>
                     <div>
-                        <h3 class="text-lg font-semibold text-white">デモユーザー</h3>
-                        <p class="text-2xl font-bold text-blue-300">
+                        <h3 class="text-base font-medium text-gray-700">デモユーザー</h3>
+                        <p class="text-2xl font-semibold text-blue-600">
                             {{ users|selectattr('1', 'equalto', 'demo')|list|length }}
                         </p>
                     </div>
                 </div>
             </div>
             
-            <div class="glass-morphism rounded-xl p-6">
+            <div class="bg-green-50 rounded-lg p-6 border border-green-200">
                 <div class="flex items-center">
                     <div class="text-3xl mr-4">👤</div>
                     <div>
-                        <h3 class="text-lg font-semibold text-white">一般ユーザー</h3>
-                        <p class="text-2xl font-bold text-green-300">
-                            {{ users|rejectattr('1', 'in', ['admin', 'demo'])|list|length }}
+                        <h3 class="text-base font-medium text-gray-700">一般ユーザー</h3>
+                        <p class="text-2xl font-semibold text-green-600">
+                            {{ users|rejectattr('1', 'in', ['admin', 'demo', 'ikki_y0518@icloud.com'])|list|length }}
                         </p>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- ユーザー一覧 -->
+        <div class="bg-white border border-gray-200 rounded-lg p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-semibold text-gray-900">登録ユーザー一覧</h2>
+                <div class="text-gray-600 text-sm">
+                    合計 {{ users|length }} 人のユーザー
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b border-gray-200">
+                            <th class="text-left py-3 px-4 font-medium text-gray-700">ID</th>
+                            <th class="text-left py-3 px-4 font-medium text-gray-700">ユーザー名</th>
+                            <th class="text-left py-3 px-4 font-medium text-gray-700">登録日時</th>
+                            <th class="text-left py-3 px-4 font-medium text-gray-700">ステータス</th>
+                            <th class="text-left py-3 px-4 font-medium text-gray-700">アクション</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                            <td class="py-3 px-4 font-mono text-gray-600">{{ user[0] }}</td>
+                            <td class="py-3 px-4">
+                                <div class="flex items-center">
+                                    {% if user[1] == 'admin' or user[1] == 'ikki_y0518@icloud.com' %}
+                                        <span class="text-yellow-500 mr-2">👑</span>
+                                    {% elif user[1] == 'demo' %}
+                                        <span class="text-blue-500 mr-2">🎯</span>
+                                    {% else %}
+                                        <span class="text-gray-500 mr-2">👤</span>
+                                    {% endif %}
+                                    <span class="text-gray-900 font-medium">{{ user[1] }}</span>
+                                </div>
+                            </td>
+                            <td class="py-3 px-4 text-gray-600 text-sm">{{ user[2] }}</td>
+                            <td class="py-3 px-4">
+                                {% if user[1] == 'admin' or user[1] == 'ikki_y0518@icloud.com' %}
+                                    <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">管理者</span>
+                                {% elif user[1] == 'demo' %}
+                                    <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">デモ</span>
+                                {% else %}
+                                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">一般</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-3 px-4">
+                                <a href="/admin/user/{{ user[1] }}" class="text-blue-500 hover:text-blue-700 text-sm font-medium">
+                                    TODOを見る
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
