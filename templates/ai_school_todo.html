@@ -530,8 +530,14 @@
                             : Math.min(4, currentIndent + 1);
                         
                         console.log(`Daily task indent: ${currentIndent} → ${newIndent} (${keyType})`);
-                        updateTaskIndent(taskId, newIndent);
-                        // フォーカス復元はupdateTaskIndent関数内で処理
+                        
+                        // インデント実行前の状態を保存
+                        const currentText = textElement.textContent;
+                        const currentSelection = window.getSelection();
+                        const currentCursorPos = currentSelection.rangeCount > 0 ? currentSelection.getRangeAt(0).endOffset : 0;
+                        
+                        // インデント実行
+                        updateTaskIndentWithFocus(taskId, newIndent, currentText, currentCursorPos);
                     }
                 } else {
                     console.log(`${keyType} ignored - not at end of text for daily task:`, taskId);
@@ -774,8 +780,14 @@
                             : Math.min(4, currentIndent + 1);
                         
                         console.log(`Routine task indent: ${currentIndent} → ${newIndent} (${keyType})`);
-                        updateRoutineTaskIndent(taskId, newIndent);
-                        // フォーカス復元はupdateRoutineTaskIndent関数内で処理
+                        
+                        // インデント実行前の状態を保存
+                        const currentText = textElement.textContent;
+                        const currentSelection = window.getSelection();
+                        const currentCursorPos = currentSelection.rangeCount > 0 ? currentSelection.getRangeAt(0).endOffset : 0;
+                        
+                        // インデント実行
+                        updateRoutineTaskIndentWithFocus(taskId, newIndent, currentText, currentCursorPos);
                     }
                 } else {
                     console.log(`${keyType} ignored - not at end of text for routine task:`, taskId);
@@ -1005,8 +1017,8 @@
             }
         }
 
-        // タスクのインデントを更新
-        async function updateTaskIndent(taskId, newIndent) {
+        // タスクのインデントを更新（フォーカス維持強化版）
+        async function updateTaskIndentWithFocus(taskId, newIndent, originalText, originalCursorPos) {
             try {
                 const response = await fetch(`/api/tasks/${taskId}`, {
                     method: 'PUT',
@@ -1020,52 +1032,26 @@
                         task.indent = newIndent;
                         console.log('Updated daily task indent to:', newIndent);
                         
-                        // カーソル位置を保存
-                        const activeElement = document.activeElement;
-                        const selection = window.getSelection();
-                        const cursorPosition = selection.rangeCount > 0 ? selection.getRangeAt(0).endOffset : 0;
+                        // UI更新前に現在のフォーカス要素を記録
+                        const currentActiveElement = document.activeElement;
+                        const wasTaskFocused = currentActiveElement && currentActiveElement.classList.contains('task-text');
                         
                         // UI更新
                         renderTasks();
                         
-                        // フォーカスとカーソル位置を復元
+                        // 非常に短い遅延でフォーカス復元（より確実）
+                        setTimeout(() => {
+                            restoreTaskFocus(taskId, originalText, originalCursorPos);
+                        }, 10);
+                        
+                        // フォールバック: 少し長い遅延でも試行
                         setTimeout(() => {
                             const taskSpan = document.querySelector(`#task-${taskId} .task-text`);
-                            if (taskSpan) {
-                                taskSpan.focus();
-                                
-                                // カーソル位置を復元
-                                try {
-                                    const range = document.createRange();
-                                    const textNode = taskSpan.firstChild || taskSpan;
-                                    const maxOffset = textNode.textContent ? textNode.textContent.length : 0;
-                                    const safeOffset = Math.min(cursorPosition, maxOffset);
-                                    
-                                    if (textNode.nodeType === Node.TEXT_NODE) {
-                                        range.setStart(textNode, safeOffset);
-                                        range.setEnd(textNode, safeOffset);
-                                    } else {
-                                        range.selectNodeContents(taskSpan);
-                                        range.collapse(false);
-                                    }
-                                    
-                                    const sel = window.getSelection();
-                                    sel.removeAllRanges();
-                                    sel.addRange(range);
-                                    
-                                    console.log(`Daily task focus restored to position ${safeOffset}`);
-                                } catch (e) {
-                                    console.log('Failed to restore cursor position, setting to end:', e);
-                                    // フォールバック: カーソルを末尾に設定
-                                    const range = document.createRange();
-                                    range.selectNodeContents(taskSpan);
-                                    range.collapse(false);
-                                    const sel = window.getSelection();
-                                    sel.removeAllRanges();
-                                    sel.addRange(range);
-                                }
+                            if (taskSpan && document.activeElement !== taskSpan) {
+                                console.log('Fallback focus restoration for daily task:', taskId);
+                                restoreTaskFocus(taskId, originalText, originalCursorPos);
                             }
-                        }, 50);
+                        }, 100);
                     }
                 }
             } catch (error) {
@@ -1073,8 +1059,18 @@
             }
         }
 
-        // 定常タスクのインデントを更新
-        async function updateRoutineTaskIndent(taskId, newIndent) {
+        // タスクのインデントを更新（従来版：後方互換性のため）
+        async function updateTaskIndent(taskId, newIndent) {
+            const currentElement = document.activeElement;
+            const currentText = currentElement && currentElement.classList.contains('task-text') ? currentElement.textContent : '';
+            const selection = window.getSelection();
+            const cursorPos = selection.rangeCount > 0 ? selection.getRangeAt(0).endOffset : 0;
+            
+            await updateTaskIndentWithFocus(taskId, newIndent, currentText, cursorPos);
+        }
+
+        // 定常タスクのインデントを更新（フォーカス維持強化版）
+        async function updateRoutineTaskIndentWithFocus(taskId, newIndent, originalText, originalCursorPos) {
             try {
                 const response = await fetch(`/api/routine/${taskId}`, {
                     method: 'PUT',
@@ -1088,56 +1084,119 @@
                         task.indent = newIndent;
                         console.log('Updated routine task indent to:', newIndent);
                         
-                        // カーソル位置を保存
-                        const activeElement = document.activeElement;
-                        const selection = window.getSelection();
-                        const cursorPosition = selection.rangeCount > 0 ? selection.getRangeAt(0).endOffset : 0;
+                        // UI更新前に現在のフォーカス要素を記録
+                        const currentActiveElement = document.activeElement;
+                        const wasTaskFocused = currentActiveElement && currentActiveElement.classList.contains('task-text');
                         
                         // UI更新
                         renderTasks();
                         
-                        // フォーカスとカーソル位置を復元
+                        // 非常に短い遅延でフォーカス復元（より確実）
+                        setTimeout(() => {
+                            restoreTaskFocus(taskId, originalText, originalCursorPos);
+                        }, 10);
+                        
+                        // フォールバック: 少し長い遅延でも試行
                         setTimeout(() => {
                             const taskSpan = document.querySelector(`#task-${taskId} .task-text`);
-                            if (taskSpan) {
-                                taskSpan.focus();
-                                
-                                // カーソル位置を復元
-                                try {
-                                    const range = document.createRange();
-                                    const textNode = taskSpan.firstChild || taskSpan;
-                                    const maxOffset = textNode.textContent ? textNode.textContent.length : 0;
-                                    const safeOffset = Math.min(cursorPosition, maxOffset);
-                                    
-                                    if (textNode.nodeType === Node.TEXT_NODE) {
-                                        range.setStart(textNode, safeOffset);
-                                        range.setEnd(textNode, safeOffset);
-                                    } else {
-                                        range.selectNodeContents(taskSpan);
-                                        range.collapse(false);
-                                    }
-                                    
-                                    const sel = window.getSelection();
-                                    sel.removeAllRanges();
-                                    sel.addRange(range);
-                                    
-                                    console.log(`Routine task focus restored to position ${safeOffset}`);
-                                } catch (e) {
-                                    console.log('Failed to restore cursor position, setting to end:', e);
-                                    // フォールバック: カーソルを末尾に設定
-                                    const range = document.createRange();
-                                    range.selectNodeContents(taskSpan);
-                                    range.collapse(false);
-                                    const sel = window.getSelection();
-                                    sel.removeAllRanges();
-                                    sel.addRange(range);
-                                }
+                            if (taskSpan && document.activeElement !== taskSpan) {
+                                console.log('Fallback focus restoration for routine task:', taskId);
+                                restoreTaskFocus(taskId, originalText, originalCursorPos);
                             }
-                        }, 50);
+                        }, 100);
                     }
                 }
             } catch (error) {
                 console.error('Error updating routine task indent:', error);
+            }
+        }
+
+        // 定常タスクのインデントを更新（従来版：後方互換性のため）
+        async function updateRoutineTaskIndent(taskId, newIndent) {
+            const currentElement = document.activeElement;
+            const currentText = currentElement && currentElement.classList.contains('task-text') ? currentElement.textContent : '';
+            const selection = window.getSelection();
+            const cursorPos = selection.rangeCount > 0 ? selection.getRangeAt(0).endOffset : 0;
+            
+            await updateRoutineTaskIndentWithFocus(taskId, newIndent, currentText, cursorPos);
+        }
+
+        // 共通のフォーカス復元関数
+        function restoreTaskFocus(taskId, originalText, originalCursorPos) {
+            try {
+                const taskSpan = document.querySelector(`#task-${taskId} .task-text`);
+                if (!taskSpan) {
+                    console.log('Task span not found for focus restoration:', taskId);
+                    return false;
+                }
+
+                // フォーカス設定
+                taskSpan.focus();
+                
+                // カーソル位置を復元
+                try {
+                    const textContent = taskSpan.textContent || '';
+                    const maxOffset = textContent.length;
+                    const safeOffset = Math.min(originalCursorPos, maxOffset);
+                    
+                    // テキストノードを取得または作成
+                    let textNode = taskSpan.firstChild;
+                    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+                        if (textContent.length > 0) {
+                            textNode = taskSpan.childNodes[0];
+                        } else {
+                            // 空のテキストノードを作成
+                            textNode = document.createTextNode('');
+                            taskSpan.appendChild(textNode);
+                        }
+                    }
+                    
+                    if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+                        const range = document.createRange();
+                        range.setStart(textNode, safeOffset);
+                        range.setEnd(textNode, safeOffset);
+                        
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                        
+                        console.log(`Task focus restored: ${taskId}, position: ${safeOffset}/${maxOffset}`);
+                        return true;
+                    } else {
+                        // テキストノードが見つからない場合のフォールバック
+                        const range = document.createRange();
+                        range.selectNodeContents(taskSpan);
+                        range.collapse(false);
+                        
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                        
+                        console.log(`Task focus restored (fallback): ${taskId}`);
+                        return true;
+                    }
+                } catch (e) {
+                    console.log('Failed to restore cursor position:', e);
+                    // 最終フォールバック: カーソルを末尾に設定
+                    try {
+                        const range = document.createRange();
+                        range.selectNodeContents(taskSpan);
+                        range.collapse(false);
+                        
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                        
+                        console.log(`Task focus restored (final fallback): ${taskId}`);
+                        return true;
+                    } catch (e2) {
+                        console.log('Complete focus restoration failure:', e2);
+                        return false;
+                    }
+                }
+            } catch (error) {
+                console.error('Error in restoreTaskFocus:', error);
+                return false;
             }
         }
 
