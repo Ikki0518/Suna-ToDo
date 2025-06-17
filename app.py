@@ -679,16 +679,67 @@ def admin_tasks():
     try:
         conn = sqlite3.connect(get_db_path())
         cursor = conn.cursor()
+        
+        # 日次タスクを取得（最近7日分）
         cursor.execute('''
-            SELECT rt.id, rt.text, 0 as completed, rt.created_at, u.username
+            SELECT dt.id, dt.text, dt.completed, dt.date, u.username, dt.indent, 'daily' as task_type
+            FROM daily_tasks dt
+            JOIN users u ON dt.user_id = u.id
+            WHERE dt.date >= date('now', '-7 days')
+            ORDER BY dt.date DESC, dt.position
+        ''')
+        daily_tasks = cursor.fetchall()
+        
+        # 定常タスクを取得（今日の完了状況と合わせて）
+        cursor.execute('''
+            SELECT rt.id, rt.text, 
+                   COALESCE(rc.completed, 0) as completed,
+                   rt.created_at as date, 
+                   u.username, 
+                   rt.indent,
+                   'routine' as task_type
             FROM routine_tasks rt
             JOIN users u ON rt.user_id = u.id
+            LEFT JOIN routine_completions rc ON rt.id = rc.routine_id 
+                AND rc.user_id = rt.user_id 
+                AND rc.date = date('now')
             ORDER BY rt.created_at DESC
         ''')
-        tasks = cursor.fetchall()
+        routine_tasks = cursor.fetchall()
+        
+        # 全ユーザー情報を取得
+        cursor.execute('SELECT id, username FROM users ORDER BY username')
+        all_users = cursor.fetchall()
+        
+        # ユーザーごとの統計を取得
+        cursor.execute('''
+            SELECT u.username,
+                   COUNT(DISTINCT dt.id) as daily_count,
+                   COUNT(DISTINCT rt.id) as routine_count,
+                   COUNT(DISTINCT CASE WHEN dt.completed = 1 THEN dt.id END) as daily_completed,
+                   COUNT(DISTINCT CASE WHEN rc.completed = 1 THEN rt.id END) as routine_completed
+            FROM users u
+            LEFT JOIN daily_tasks dt ON u.id = dt.user_id AND dt.date >= date('now', '-7 days')
+            LEFT JOIN routine_tasks rt ON u.id = rt.user_id
+            LEFT JOIN routine_completions rc ON rt.id = rc.routine_id 
+                AND rc.user_id = rt.user_id 
+                AND rc.date = date('now')
+            GROUP BY u.id, u.username
+            ORDER BY u.username
+        ''')
+        user_stats = cursor.fetchall()
+        
         conn.close()
         
-        return render_template('admin_tasks.html', tasks=tasks)
+        # 全タスクを結合
+        all_tasks = list(daily_tasks) + list(routine_tasks)
+        
+        return render_template('admin_tasks.html', 
+                             daily_tasks=daily_tasks,
+                             routine_tasks=routine_tasks,
+                             all_tasks=all_tasks,
+                             all_users=all_users,
+                             user_stats=user_stats)
     except Exception as e:
         logger.error(f"Admin tasks error: {e}")
         return "タスク管理でエラーが発生しました", 500

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>タスク管理 - 管理者ダッシュボード</title>
+    <title>TODO管理 - 管理者ダッシュボード</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
         .glass-morphism {
@@ -11,13 +11,28 @@
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .tab-button.active {
+            background: rgba(255, 255, 255, 0.2);
+            border-bottom: 2px solid #fff;
+        }
+        .indent-0 { padding-left: 0rem; }
+        .indent-1 { padding-left: 1.5rem; }
+        .indent-2 { padding-left: 3rem; }
+        .indent-3 { padding-left: 4.5rem; }
+        .indent-4 { padding-left: 6rem; }
     </style>
 </head>
 <body class="bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700 min-h-screen">
     <div class="container mx-auto px-4 py-8">
         <!-- ヘッダー -->
         <div class="flex justify-between items-center mb-8">
-            <h1 class="text-4xl font-bold text-white">📋 タスク管理</h1>
+            <h1 class="text-4xl font-bold text-white">📋 TODO管理</h1>
             <div class="flex space-x-4">
                 <a href="/admin" class="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition">
                     📊 ダッシュボード
@@ -28,159 +43,352 @@
             </div>
         </div>
 
-        <!-- 統計情報 -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div class="glass-morphism rounded-xl p-6">
-                <div class="flex items-center">
-                    <div class="text-3xl mr-4">📝</div>
-                    <div>
-                        <h3 class="text-lg font-semibold text-white">総タスク数</h3>
-                        <p class="text-2xl font-bold text-white">{{ tasks|length }}</p>
+        <!-- ユーザー統計 -->
+        <div class="glass-morphism rounded-xl p-6 mb-8">
+            <h2 class="text-2xl font-bold text-white mb-4">👥 ユーザー別統計</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for user in user_stats %}
+                <div class="bg-white bg-opacity-10 rounded-lg p-4">
+                    <div class="flex items-center mb-2">
+                        {% if user[0] == 'admin' or user[0] == 'ikki_y0518@icloud.com' %}
+                            <span class="text-yellow-300 mr-2">👑</span>
+                        {% elif user[0] == 'demo' %}
+                            <span class="text-blue-300 mr-2">🎯</span>
+                        {% else %}
+                            <span class="text-green-300 mr-2">👤</span>
+                        {% endif %}
+                        <span class="text-white font-semibold">{{ user[0] }}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div class="text-blue-200">
+                            📅 日次: {{ user[3] }}/{{ user[1] }}
+                        </div>
+                        <div class="text-purple-200">
+                            🔄 定常: {{ user[4] }}/{{ user[2] }}
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        {% set total_tasks = user[1] + user[2] %}
+                        {% set total_completed = user[3] + user[4] %}
+                        {% if total_tasks > 0 %}
+                            {% set completion_rate = ((total_completed / total_tasks) * 100)|round|int %}
+                            <div class="bg-gray-200 rounded-full h-2">
+                                <div class="bg-green-400 h-2 rounded-full" style="width: {{ completion_rate }}%"></div>
+                            </div>
+                            <span class="text-white text-xs">{{ completion_rate }}% 完了</span>
+                        {% else %}
+                            <span class="text-gray-300 text-xs">タスクなし</span>
+                        {% endif %}
                     </div>
                 </div>
-            </div>
-            
-            <div class="glass-morphism rounded-xl p-6">
-                <div class="flex items-center">
-                    <div class="text-3xl mr-4">✅</div>
-                    <div>
-                        <h3 class="text-lg font-semibold text-white">完了済み</h3>
-                        <p class="text-2xl font-bold text-green-300">
-                            {{ tasks|selectattr('2', 'equalto', 1)|list|length }}
-                        </p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="glass-morphism rounded-xl p-6">
-                <div class="flex items-center">
-                    <div class="text-3xl mr-4">⏳</div>
-                    <div>
-                        <h3 class="text-lg font-semibold text-white">未完了</h3>
-                        <p class="text-2xl font-bold text-yellow-300">
-                            {{ tasks|selectattr('2', 'equalto', 0)|list|length }}
-                        </p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="glass-morphism rounded-xl p-6">
-                <div class="flex items-center">
-                    <div class="text-3xl mr-4">📊</div>
-                    <div>
-                        <h3 class="text-lg font-semibold text-white">完了率</h3>
-                        <p class="text-2xl font-bold text-blue-300">
-                            {% if tasks|length > 0 %}
-                                {{ ((tasks|selectattr('2', 'equalto', 1)|list|length / tasks|length) * 100)|round|int }}%
-                            {% else %}
-                                0%
-                            {% endif %}
-                        </p>
-                    </div>
-                </div>
+                {% endfor %}
             </div>
         </div>
 
-        <!-- フィルター -->
-        <div class="glass-morphism rounded-xl p-4 mb-6">
-            <div class="flex flex-wrap gap-4">
-                <button onclick="filterTasks('all')" class="filter-btn bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition">
-                    全て
+        <!-- タブナビゲーション -->
+        <div class="glass-morphism rounded-xl p-6 mb-8">
+            <div class="flex space-x-4 mb-6">
+                <button onclick="showTab('overview')" class="tab-button active px-6 py-2 rounded-lg text-white transition">
+                    📊 概要
                 </button>
-                <button onclick="filterTasks('completed')" class="filter-btn bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition">
-                    完了済み
+                <button onclick="showTab('daily')" class="tab-button px-6 py-2 rounded-lg text-white transition">
+                    📅 日次TODO (過去7日)
                 </button>
-                <button onclick="filterTasks('pending')" class="filter-btn bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition">
-                    未完了
+                <button onclick="showTab('routine')" class="tab-button px-6 py-2 rounded-lg text-white transition">
+                    🔄 定常TODO
+                </button>
+                <button onclick="showTab('by-user')" class="tab-button px-6 py-2 rounded-lg text-white transition">
+                    👥 ユーザー別
                 </button>
             </div>
-        </div>
 
-        <!-- タスク一覧 -->
-        <div class="glass-morphism rounded-xl p-6">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-white">全タスク一覧</h2>
-                <div class="text-white bg-blue-500 px-4 py-2 rounded-lg">
-                    表示中: <span id="task-count">{{ tasks|length }}</span> タスク
-                </div>
-            </div>
-            
-            <div class="overflow-x-auto">
-                <table class="w-full text-white">
-                    <thead>
-                        <tr class="border-b border-white border-opacity-20">
-                            <th class="text-left py-3 px-4">ID</th>
-                            <th class="text-left py-3 px-4">タスク内容</th>
-                            <th class="text-left py-3 px-4">ユーザー</th>
-                            <th class="text-left py-3 px-4">ステータス</th>
-                            <th class="text-left py-3 px-4">作成日時</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tasks-tbody">
-                        {% for task in tasks %}
-                        <tr class="task-row border-b border-white border-opacity-10 hover:bg-white hover:bg-opacity-5 transition" 
-                            data-status="{{ 'completed' if task[2] == 1 else 'pending' }}">
-                            <td class="py-3 px-4 font-mono text-sm">{{ task[0] }}</td>
-                            <td class="py-3 px-4 max-w-xs">
-                                <div class="truncate" title="{{ task[1] }}">
-                                    {{ task[1][:50] + '...' if task[1]|length > 50 else task[1] }}
-                                </div>
-                            </td>
-                            <td class="py-3 px-4">
-                                <div class="flex items-center">
-                                    {% if task[4] == 'admin' %}
-                                        <span class="text-yellow-300 mr-2">👑</span>
-                                    {% elif task[4] == 'demo' %}
-                                        <span class="text-blue-300 mr-2">🎯</span>
+            <!-- 概要タブ -->
+            <div id="overview" class="tab-content active">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="bg-white bg-opacity-10 rounded-lg p-4">
+                        <div class="flex items-center">
+                            <div class="text-3xl mr-4">📝</div>
+                            <div>
+                                <h3 class="text-lg font-semibold text-white">総タスク数</h3>
+                                <p class="text-2xl font-bold text-white">{{ all_tasks|length }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white bg-opacity-10 rounded-lg p-4">
+                        <div class="flex items-center">
+                            <div class="text-3xl mr-4">✅</div>
+                            <div>
+                                <h3 class="text-lg font-semibold text-white">完了済み</h3>
+                                <p class="text-2xl font-bold text-green-300">
+                                    {{ all_tasks|selectattr('2', 'equalto', 1)|list|length }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white bg-opacity-10 rounded-lg p-4">
+                        <div class="flex items-center">
+                            <div class="text-3xl mr-4">⏳</div>
+                            <div>
+                                <h3 class="text-lg font-semibold text-white">未完了</h3>
+                                <p class="text-2xl font-bold text-yellow-300">
+                                    {{ all_tasks|selectattr('2', 'equalto', 0)|list|length }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white bg-opacity-10 rounded-lg p-4">
+                        <div class="flex items-center">
+                            <div class="text-3xl mr-4">📊</div>
+                            <div>
+                                <h3 class="text-lg font-semibold text-white">完了率</h3>
+                                <p class="text-2xl font-bold text-blue-300">
+                                    {% if all_tasks|length > 0 %}
+                                        {{ ((all_tasks|selectattr('2', 'equalto', 1)|list|length / all_tasks|length) * 100)|round|int }}%
                                     {% else %}
-                                        <span class="text-green-300 mr-2">👤</span>
+                                        0%
                                     {% endif %}
-                                    {{ task[4] }}
-                                </div>
-                            </td>
-                            <td class="py-3 px-4">
-                                {% if task[2] == 1 %}
-                                    <span class="bg-green-500 text-white px-2 py-1 rounded-full text-xs flex items-center w-fit">
-                                        ✅ 完了
-                                    </span>
-                                {% else %}
-                                    <span class="bg-yellow-500 text-black px-2 py-1 rounded-full text-xs flex items-center w-fit">
-                                        ⏳ 未完了
-                                    </span>
-                                {% endif %}
-                            </td>
-                            <td class="py-3 px-4 text-sm">{{ task[3] }}</td>
-                        </tr>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日次TODOタブ -->
+            <div id="daily" class="tab-content">
+                <div class="mb-4">
+                    <h3 class="text-xl font-bold text-white mb-2">📅 日次TODO (過去7日分)</h3>
+                    <p class="text-gray-200 text-sm">各ユーザーが日々追加したタスクと完了状況を確認できます</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-white">
+                        <thead>
+                            <tr class="border-b border-white border-opacity-20">
+                                <th class="text-left py-3 px-4">日付</th>
+                                <th class="text-left py-3 px-4">ユーザー</th>
+                                <th class="text-left py-3 px-4">タスク内容</th>
+                                <th class="text-left py-3 px-4">インデント</th>
+                                <th class="text-left py-3 px-4">ステータス</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for task in daily_tasks %}
+                            <tr class="border-b border-white border-opacity-10 hover:bg-white hover:bg-opacity-5 transition">
+                                <td class="py-3 px-4 text-sm">{{ task[3] }}</td>
+                                <td class="py-3 px-4">
+                                    <div class="flex items-center">
+                                        {% if task[4] == 'admin' or task[4] == 'ikki_y0518@icloud.com' %}
+                                            <span class="text-yellow-300 mr-2">👑</span>
+                                        {% elif task[4] == 'demo' %}
+                                            <span class="text-blue-300 mr-2">🎯</span>
+                                        {% else %}
+                                            <span class="text-green-300 mr-2">👤</span>
+                                        {% endif %}
+                                        {{ task[4] }}
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4 indent-{{ task[5] if task[5] <= 4 else 4 }}">
+                                    <div class="max-w-md">
+                                        {{ task[1] }}
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4 text-sm text-gray-300">
+                                    レベル {{ task[5] }}
+                                </td>
+                                <td class="py-3 px-4">
+                                    {% if task[2] == 1 %}
+                                        <span class="bg-green-500 text-white px-2 py-1 rounded-full text-xs flex items-center w-fit">
+                                            ✅ 完了
+                                        </span>
+                                    {% else %}
+                                        <span class="bg-yellow-500 text-black px-2 py-1 rounded-full text-xs flex items-center w-fit">
+                                            ⏳ 未完了
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 定常TODOタブ -->
+            <div id="routine" class="tab-content">
+                <div class="mb-4">
+                    <h3 class="text-xl font-bold text-white mb-2">🔄 定常TODO</h3>
+                    <p class="text-gray-200 text-sm">各ユーザーが設定した繰り返しタスクと今日の完了状況</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-white">
+                        <thead>
+                            <tr class="border-b border-white border-opacity-20">
+                                <th class="text-left py-3 px-4">ユーザー</th>
+                                <th class="text-left py-3 px-4">タスク内容</th>
+                                <th class="text-left py-3 px-4">インデント</th>
+                                <th class="text-left py-3 px-4">今日の状況</th>
+                                <th class="text-left py-3 px-4">作成日</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for task in routine_tasks %}
+                            <tr class="border-b border-white border-opacity-10 hover:bg-white hover:bg-opacity-5 transition">
+                                <td class="py-3 px-4">
+                                    <div class="flex items-center">
+                                        {% if task[4] == 'admin' or task[4] == 'ikki_y0518@icloud.com' %}
+                                            <span class="text-yellow-300 mr-2">👑</span>
+                                        {% elif task[4] == 'demo' %}
+                                            <span class="text-blue-300 mr-2">🎯</span>
+                                        {% else %}
+                                            <span class="text-green-300 mr-2">👤</span>
+                                        {% endif %}
+                                        {{ task[4] }}
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4 indent-{{ task[5] if task[5] <= 4 else 4 }}">
+                                    <div class="max-w-md">
+                                        {{ task[1] }}
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4 text-sm text-gray-300">
+                                    レベル {{ task[5] }}
+                                </td>
+                                <td class="py-3 px-4">
+                                    {% if task[2] == 1 %}
+                                        <span class="bg-green-500 text-white px-2 py-1 rounded-full text-xs flex items-center w-fit">
+                                            ✅ 完了済み
+                                        </span>
+                                    {% else %}
+                                        <span class="bg-yellow-500 text-black px-2 py-1 rounded-full text-xs flex items-center w-fit">
+                                            ⏳ 未完了
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="py-3 px-4 text-sm">{{ task[3][:10] }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ユーザー別タブ -->
+            <div id="by-user" class="tab-content">
+                <div class="mb-4">
+                    <h3 class="text-xl font-bold text-white mb-2">👥 ユーザー別TODO</h3>
+                    <p class="text-gray-200 text-sm">各ユーザーの詳細なTODO状況を確認</p>
+                </div>
+                
+                <!-- ユーザー選択 -->
+                <div class="mb-4">
+                    <select id="userSelect" onchange="filterByUser()" class="bg-white bg-opacity-20 text-white px-4 py-2 rounded-lg">
+                        <option value="">全ユーザー</option>
+                        {% for user in all_users %}
+                        <option value="{{ user[1] }}">{{ user[1] }}</option>
                         {% endfor %}
-                    </tbody>
-                </table>
+                    </select>
+                </div>
+
+                <!-- ユーザー別タスク表示 -->
+                <div id="userTasksContainer">
+                    {% for user in all_users %}
+                    <div class="user-tasks" data-user="{{ user[1] }}">
+                        <div class="bg-white bg-opacity-10 rounded-lg p-4 mb-4">
+                            <h4 class="text-lg font-bold text-white mb-3 flex items-center">
+                                {% if user[1] == 'admin' or user[1] == 'ikki_y0518@icloud.com' %}
+                                    <span class="text-yellow-300 mr-2">👑</span>
+                                {% elif user[1] == 'demo' %}
+                                    <span class="text-blue-300 mr-2">🎯</span>
+                                {% else %}
+                                    <span class="text-green-300 mr-2">👤</span>
+                                {% endif %}
+                                {{ user[1] }} のTODO
+                            </h4>
+                            
+                            <!-- 日次タスク -->
+                            <div class="mb-4">
+                                <h5 class="text-white font-semibold mb-2">📅 日次TODO</h5>
+                                {% set user_daily_tasks = daily_tasks|selectattr('4', 'equalto', user[1])|list %}
+                                {% if user_daily_tasks %}
+                                    {% for task in user_daily_tasks %}
+                                    <div class="flex items-center justify-between py-2 px-3 mb-1 bg-white bg-opacity-5 rounded indent-{{ task[5] if task[5] <= 4 else 4 }}">
+                                        <span class="text-white text-sm">{{ task[1] }}</span>
+                                        <div class="flex items-center space-x-2">
+                                            <span class="text-xs text-gray-300">{{ task[3] }}</span>
+                                            {% if task[2] == 1 %}
+                                                <span class="text-green-400 text-xs">✅</span>
+                                            {% else %}
+                                                <span class="text-yellow-400 text-xs">⏳</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="text-gray-300 text-sm">日次TODOはありません</p>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- 定常タスク -->
+                            <div>
+                                <h5 class="text-white font-semibold mb-2">🔄 定常TODO</h5>
+                                {% set user_routine_tasks = routine_tasks|selectattr('4', 'equalto', user[1])|list %}
+                                {% if user_routine_tasks %}
+                                    {% for task in user_routine_tasks %}
+                                    <div class="flex items-center justify-between py-2 px-3 mb-1 bg-white bg-opacity-5 rounded indent-{{ task[5] if task[5] <= 4 else 4 }}">
+                                        <span class="text-white text-sm">{{ task[1] }}</span>
+                                        <div class="flex items-center space-x-2">
+                                            <span class="text-xs text-gray-300">今日</span>
+                                            {% if task[2] == 1 %}
+                                                <span class="text-green-400 text-xs">✅</span>
+                                            {% else %}
+                                                <span class="text-yellow-400 text-xs">⏳</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="text-gray-300 text-sm">定常TODOはありません</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        function filterTasks(status) {
-            const rows = document.querySelectorAll('.task-row');
-            const countElement = document.getElementById('task-count');
-            let visibleCount = 0;
+        function showTab(tabName) {
+            // 全てのタブコンテンツを非表示
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
             
-            rows.forEach(row => {
-                if (status === 'all' || row.dataset.status === status) {
-                    row.style.display = '';
-                    visibleCount++;
+            // 全てのタブボタンを非アクティブ
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // 選択されたタブを表示
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function filterByUser() {
+            const selectedUser = document.getElementById('userSelect').value;
+            const userTasksElements = document.querySelectorAll('.user-tasks');
+            
+            userTasksElements.forEach(element => {
+                if (selectedUser === '' || element.dataset.user === selectedUser) {
+                    element.style.display = 'block';
                 } else {
-                    row.style.display = 'none';
+                    element.style.display = 'none';
                 }
             });
-            
-            countElement.textContent = visibleCount;
-            
-            // アクティブボタンのスタイル更新
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.remove('ring-2', 'ring-white');
-            });
-            
-            event.target.classList.add('ring-2', 'ring-white');
         }
     </script>
 </body>
