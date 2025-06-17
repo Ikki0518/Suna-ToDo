@@ -180,16 +180,16 @@
         <header class="text-center mb-8 relative">
             <!-- ナビゲーションボタン -->
             <div class="absolute top-0 right-0 flex space-x-2">
-                <!-- 管理者ダッシュボードボタン（管理者のみ表示） -->
-                {% if session.username == 'admin' %}
-                <a href="/admin" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-sm transition-colors">
-                    📊 管理者ダッシュボード
-                </a>
-                {% endif %}
                 <!-- ログアウトボタン -->
                 <a href="/logout" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-2 rounded-lg text-sm transition-colors">
                     ログアウト
                 </a>
+                <!-- 管理者ダッシュボードボタン（管理者のみ表示） -->
+                {% if session.username == 'admin' or session.username == 'ikki_y0518@icloud.com' %}
+                <a href="/admin" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg text-sm transition-colors">
+                    📊 管理者ダッシュボード
+                </a>
+                {% endif %}
             </div>
             <div class="flex items-center justify-center mb-4">
                 <!-- Sunaロゴ -->

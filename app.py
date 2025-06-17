@@ -120,6 +120,14 @@ def init_database():
         ''', ('admin', admin_password_hash))
         logger.info("管理者ユーザー作成: admin/admin123")
         
+        # 新しい管理者ユーザーを作成
+        new_admin_password_hash = hashlib.sha256('ikki0518'.encode()).hexdigest()
+        cursor.execute('''
+            INSERT OR IGNORE INTO users (username, password_hash)
+            VALUES (?, ?)
+        ''', ('ikki_y0518@icloud.com', new_admin_password_hash))
+        logger.info("新しい管理者ユーザー作成: ikki_y0518@icloud.com/ikki0518")
+        
         # サンプルタスクを作成（デモ用）
         today = datetime.now().strftime('%Y-%m-%d')
         
@@ -227,6 +235,11 @@ def login_required(f):
             return jsonify({'error': 'Login required'}), 401
         return f(*args, **kwargs)
     return decorated_function
+
+def is_admin(username):
+    """管理者判定"""
+    admin_users = ['admin', 'ikki_y0518@icloud.com']
+    return username in admin_users
 
 # ルート定義
 @app.route('/')
@@ -602,7 +615,7 @@ def health():
 @app.route('/admin')
 @login_required
 def admin_dashboard():
-    if session.get('username') != 'admin':
+    if not is_admin(session.get('username')):
         return redirect(url_for('index'))
     
     try:
@@ -642,7 +655,7 @@ def admin_dashboard():
 @app.route('/admin/users')
 @login_required
 def admin_users():
-    if session.get('username') != 'admin':
+    if not is_admin(session.get('username')):
         return redirect(url_for('index'))
     
     try:
@@ -660,7 +673,7 @@ def admin_users():
 @app.route('/admin/tasks')
 @login_required
 def admin_tasks():
-    if session.get('username') != 'admin':
+    if not is_admin(session.get('username')):
         return redirect(url_for('index'))
     
     try:
